@@ -1,35 +1,10 @@
 #!/usr/bin/env -S deno run -A
 
 import { Command } from "https://deno.land/x/cliffy/command/mod.ts";
+import type { Options } from "./types.ts";
+import { Unit } from "./globals.ts";
 // import * from "actions.ts";
 //
-type Options = {
-  url?: string | Url;
-  socket?: string | socket;
-};
-
-const unit = {
-  url: "http://127.0.0.1:8080",
-};
-
-let init = (options): void => {
-  if (options?.url) {
-    url = options.url;
-  }
-};
-
-let get = async (): void => {
-  const request = new Request(unit.url, {
-    method: "GET",
-    // headers: {
-    //   "content-type": "application/json",
-    // },
-  });
-  const res = await fetch(request);
-  const json = await res.json();
-  console.log(json);
-};
-
 const cli = new Command()
   .name("nulite")
   .version("0.1.0")
@@ -38,26 +13,40 @@ const cli = new Command()
 // Connect to unit
 cli
   .globalOption("--url", "nginx-unit url")
-  .globalOption("--socket", "nginx-unit socket");
+  .arguments("<value:string>")
+  .globalOption("--socket", "nginx-unit socket")
+  .arguments("<value:string>");
 
-// Subcommands
+// Subcommands - Getters
 cli
-  .command("foo", "Foo sub-command.")
+  .command("info", "Get every unit objects")
+  .action((options: Options, ...args) => {
+    const unit = new Unit(options);
+    unit.get();
+  })
+  .command("config", "Get the unit configuration object")
   .action((options, ...args) => {
-    init(options);
-    get();
+    const unit = new Unit(options);
+    unit.get({ path: "/config" });
+  })
+  .command("certs", "Get the unit configuration object")
+  .action((options, ...args) => {
+    const unit = new Unit(options);
+    unit.get({ path: "/certificates" });
+  })
+  .command("status", "Get the unit status object")
+  .action((options, ...args) => {
+    const unit = new Unit(options);
+    unit.get({ path: "/status" });
+  });
+
+// Subcommands - Setters
+cli
+  .command("domain", "Set a new domain")
+  .action((options, ...args) => {
+    const unit = new Unit(options);
+    unit.set({ path: "/config/listeners", object: {} });
+    unit.set({ path: "/config/routes", object: {} });
   });
 
 await cli.parse(Deno.args);
-
-const update = () => {
-  const request = new Request(url, {
-    method: "POST",
-    body: JSON.stringify({
-      message: "Hello world!",
-    }),
-    headers: {
-      "content-type": "application/json",
-    },
-  });
-};
