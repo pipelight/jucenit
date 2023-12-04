@@ -11,6 +11,7 @@ export type GetArgs = {
 export type SetArgs = {
   path?: string;
   object?: any;
+  raw?: string;
 };
 
 export class UnitError extends Error {
