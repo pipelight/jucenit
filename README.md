@@ -82,8 +82,8 @@ const container = docker.containers.get("front") as Container;
 
 And expose container:
 
-In the background it generates an ssl certificate with standalon certbot and add the specific
-configuration in unitd.
+In the background it generates an ssl certificate with standalon certbot and add
+the specific configuration in unitd.
 
 ```ts
 // pipelight.ts
@@ -97,7 +97,7 @@ let expose = step(() => [
 ## Connect to Unit
 
 By default, jucenit attenpts to connect to a nginx\_unit server at
-http://127.0.0.1:80.
+http://127.0.0.1:8080.
 
 Connect to a custom url with custom url with:
 
