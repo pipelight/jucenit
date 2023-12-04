@@ -1,4 +1,4 @@
-# Jucenit - Nginx Unit wrapper
+# Jucenit - nginx unit wrapper
 
 A wrapper around **nginx unit** to ease queries, ssl support and container
 proxying.
@@ -9,7 +9,7 @@ Better to use in combination with
 ## Motivations
 
 Nginx unit is an amazing piece of software that allow us to configure a web
-server programticaly.
+server programmatically.
 
 It is so easy to configure unit that there is actually a lake of open-source
 solutions for easy cli configuration besides the official cli
@@ -17,12 +17,12 @@ solutions for easy cli configuration besides the official cli
 
 If you don't have a custom solution yet, Jucenit got you cover with:
 
-- easy ssl rebewal,
+- easy ssl renewal,
 - easy container proxying,
 
 ## Prerequisites
 
-Dpendencies: nginx-unit, deno, openssl, certbot.
+Install dpendencies: nginx-unit, deno, openssl, certbot.
 
 ## Usage as cli
 
@@ -82,7 +82,7 @@ const container = docker.containers.get("front") as Container;
 
 And expose container:
 
-In the background it generates a cert with standalon certbot. Add the specific
+In the background it generates an ssl certificate with standalon certbot and add the specific
 configuration in unitd.
 
 ```ts
@@ -106,7 +106,6 @@ jucenit --url <custom_url> --socket <socket> info
 ```
 
 ## Contribute
-
 
 ```sh
 deno test
