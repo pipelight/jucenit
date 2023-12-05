@@ -4,6 +4,7 @@ import { Command } from "https://deno.land/x/cliffy/command/mod.ts";
 import { Container, Docker } from "https://deno.land/x/pipelight/mod.ts";
 import type { Options } from "./types.ts";
 import { Unit } from "./class.ts";
+import { actions, certificate } from "./actions/mod.ts";
 //
 const cli = new Command()
   .name("jucenit")
@@ -15,6 +16,8 @@ cli
   .globalOption("--url", "nginx-unit url")
   .arguments("<value:string>")
   .globalOption("--socket", "nginx-unit socket")
+  .arguments("<value:string>")
+  .globalOption("--log", "Set the loglevel")
   .arguments("<value:string>");
 
 // Subcommands - Getters
@@ -43,10 +46,18 @@ cli
 // Subcommands - Setters
 cli
   .command("domain", "Set a new domain")
-  .action((options: Options, ...args) => {
-    const unit = new Unit(options);
-    const container = args.shift();;
-    unit.make_dummy_cert(container);
+  .option("--dummy", "Generate a self signed dummy socket")
+  .option("--dry-run", "Certbot dry-run")
+  .action((options, ...args) => {
+    const unit = new Unit(options as Options);
+
+    const container = args.shift();
+
+    if (options.dummy) {
+      const { dummy } = certificate(unit);
+      dummy(container);
+    }
+
     // unit.make_routes(container);
     // unit.make_listeners(container);
   });
