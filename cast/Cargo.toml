@@ -1,0 +1,9 @@
+[package]
+name = "cast"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+colored = "2.1.0"
+miette = "7.2.0"
+toml = "0.8.12"
