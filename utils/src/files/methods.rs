@@ -8,8 +8,8 @@ use log::debug;
 use miette::{Error, IntoDiagnostic, Result};
 
 /**
-Read the last line of the file at the provide path
-and return it as a string.
+* Read the last line of the file at the provide path
+* and return it as a string.
 */
 pub fn read_last_line(path: &Path) -> Result<String> {
     let file = File::open(path).into_diagnostic()?;

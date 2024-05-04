@@ -1,5 +1,5 @@
 [package]
-name = "cast"
+name = "request"
 version = "0.2.0"
 edition = "2021"
 
@@ -12,6 +12,6 @@ serde_yaml = "0.9.34"
 thiserror = "1.0.59"
 toml = "0.8.12"
 utils = { path = "../utils" }
+cast = { path = "../cast/" }
 tokio = { version = "1.37.0", features = ["full"] }
 reqwest = { version = "0.12.4", features = ["json", "h3", "brotli"] }
-once_cell = "1.19.0"

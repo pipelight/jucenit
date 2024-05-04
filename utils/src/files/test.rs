@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(test_methods)]
 mod is {
     use crate::files::is;
     use std::path::Path;
