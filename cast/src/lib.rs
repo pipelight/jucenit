@@ -25,7 +25,7 @@ impl Config {
     Languages coming next after v1.0.0:
       - Rust, Hcl, Kcl, Python...
     */
-    pub fn load(file_path: &str, args: Option<Vec<String>>) -> Result<Config> {
+    pub fn load(file_path: &str) -> Result<Config> {
         let extension = &Path::new(file_path)
             .extension()
             .unwrap()
@@ -78,7 +78,7 @@ impl Config {
 /**
  * Test loading a file from a given path
  */
-mod read_config_file {
+mod config_file {
     use miette::Result;
 
     use crate::types::Config;
@@ -86,6 +86,13 @@ mod read_config_file {
     #[test]
     fn read_toml() -> Result<()> {
         let res = Config::from_toml("../examples/unit.toml")?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+
+    #[test]
+    fn seek_file() -> Result<()> {
+        let res = Config::get()?; 
         println!("{:#?}", res);
         Ok(())
     }

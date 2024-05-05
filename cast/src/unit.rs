@@ -7,6 +7,8 @@ use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
+// Config file
+use crate::types::Config as ConfigFile;
 
 pub static SETTINGS: Lazy<Arc<Mutex<Settings>>> =
     Lazy::new(|| Arc::new(Mutex::new(Settings::default())));
@@ -62,19 +64,23 @@ impl Config {
             .into_diagnostic()?;
         Ok(config)
     }
-    async fn set(&self, config: Config) -> Result<()> {
+    /**
+     * You can only PUT object to replace the actual configuration
+     */
+    async fn set(&self, config: Config) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
-        let config = client
-            .post(settings.get_url() + "/config")
+        let res = client
+            .put(settings.get_url() + "/config")
             .body(serde_json::to_string(&config).into_diagnostic()?)
             .send()
             .await
             .into_diagnostic()?
-            .json::<Config>()
+            .json::<serde_json::Value>()
             .await
             .into_diagnostic()?;
-            Ok(())
+
+        Ok(res)
     }
 }
 
@@ -127,6 +133,8 @@ pub struct Match {
 #[cfg(test)]
 mod unit {
 
+    use crate::config_file;
+
     use super::*;
     use miette::Result;
 
@@ -141,7 +149,16 @@ mod unit {
     #[tokio::test]
     async fn set_config() -> Result<()> {
         let mut unit = Unit::default();
-        let res = unit.config.get().await?;
+        let res = unit.config.set(Config::default()).await?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_from_file() -> Result<()> {
+        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let mut unit = Unit::default();
+        let res = unit.config.set(Config::default()).await?;
         println!("{:#?}", res);
         Ok(())
     }

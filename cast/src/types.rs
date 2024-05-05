@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utils::teleport::Portal;
+// Error Handling
+use miette::{Error, IntoDiagnostic, Result};
 
 // Config file related structs
 /**
@@ -10,6 +13,18 @@ use std::collections::HashMap;
 pub struct Config {
     pub unit: Option<Vec<Unit>>,
 }
+
+impl Config {
+    pub fn get() -> Result<Config> {
+        let mut portal = Portal::new()?;
+        portal.seed("jucenit");
+
+        let res = portal.search()?;
+        let config = Config::load(&portal.target.file_path.unwrap())?;
+        Ok(config)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
@@ -18,7 +33,6 @@ pub struct Unit {
     pub match_: Option<Match>,
     pub listeners: Option<Vec<String>>,
 }
-
 
 // Common structs to file config and unit config
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
