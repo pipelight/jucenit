@@ -1,10 +1,8 @@
-mod convert;
 mod error;
 pub mod types;
-pub mod unit;
 
 // Structs
-use crate::types::Config;
+use crate::types::config::Config;
 // Filesystem
 use std::fs;
 use std::path::Path;
@@ -81,7 +79,7 @@ impl Config {
 mod config_file {
     use miette::Result;
 
-    use crate::types::Config;
+    use crate::types::config::Config;
 
     #[test]
     fn read_toml() -> Result<()> {
@@ -92,7 +90,7 @@ mod config_file {
 
     #[test]
     fn seek_file() -> Result<()> {
-        let res = Config::get()?; 
+        let res = Config::get()?;
         println!("{:#?}", res);
         Ok(())
     }

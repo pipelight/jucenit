@@ -1,3 +1,7 @@
+use super::{
+    common::{Action, Match},
+    config::Config as ConfigFile,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::default::Default;
@@ -8,7 +12,6 @@ use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
 // Config file
-use crate::types::Config as ConfigFile;
 
 pub static SETTINGS: Lazy<Arc<Mutex<Settings>>> =
     Lazy::new(|| Arc::new(Mutex::new(Settings::default())));
@@ -48,10 +51,20 @@ pub struct Unit {
     #[serde(skip)]
     pub settings: Settings,
 }
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub listeners: HashMap<String, ListenerOpts>,
     pub routes: HashMap<String, Vec<Route>>,
+}
+impl Default for Config {
+    fn default() -> Self {
+        // Ensure an empty named route array exists
+        let mut routes = HashMap::new();
+        routes.insert("jucenit".to_owned(), vec![]);
+
+        let listeners = HashMap::new();
+        Config { routes, listeners }
+    }
 }
 impl Config {
     async fn get(&self) -> Result<Config> {
@@ -88,6 +101,7 @@ impl Config {
 #[serde(deny_unknown_fields)]
 pub struct ListenerOpts {
     pub pass: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tls: Option<Certificate>,
 }
 
@@ -104,52 +118,26 @@ pub struct Route {
     pub match_: Match,
 }
 
-// Common structs to file config and unit config
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct Action {
-    // Reverse proxy
-    pub proxy: Option<String>,
-    // Public folder
-    pub share: serde_json::Value,
-    pub chroot: Option<String>,
-    // Error
-    #[serde(rename = "return")]
-    pub return_number: Option<String>,
-
-    pub rewrite: Option<String>,
-    pub pass: Option<String>,
-
-    pub fallback: Option<Box<Action>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct Match {
-    pub uri: serde_json::Value,
-    pub source: Option<Vec<String>>,
-}
-
 #[cfg(test)]
-mod unit {
+mod tests {
 
-    use crate::config_file;
+    use super::Config as ConfigUnit;
+    use super::ConfigFile;
 
-    use super::*;
     use miette::Result;
 
     #[tokio::test]
     async fn get_config() -> Result<()> {
-        let mut unit = Unit::default();
-        let res = unit.config.get().await?;
+        let mut config = ConfigUnit::default();
+        let res = config.get().await?;
         println!("{:#?}", res);
         Ok(())
     }
 
     #[tokio::test]
     async fn set_config() -> Result<()> {
-        let mut unit = Unit::default();
-        let res = unit.config.set(Config::default()).await?;
+        let mut config = ConfigUnit::default();
+        let res = config.set(ConfigUnit::default()).await?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -157,8 +145,8 @@ mod unit {
     #[tokio::test]
     async fn set_from_file() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        let mut unit = Unit::default();
-        let res = unit.config.set(Config::default()).await?;
+        let mut config = ConfigUnit::default();
+        let res = config.set(ConfigUnit::from(&config_file)).await?;
         println!("{:#?}", res);
         Ok(())
     }

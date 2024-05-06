@@ -1,3 +1,5 @@
+use super::common::{Action, Match};
+use super::unit::Config as ConfigUnit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utils::teleport::Portal;
@@ -23,6 +25,12 @@ impl Config {
         let config = Config::load(&portal.target.file_path.unwrap())?;
         Ok(config)
     }
+    pub fn adapt(&self) -> Result<String> {
+        let config = ConfigUnit::from(self);
+        let res = serde_json::to_string_pretty(&config).into_diagnostic()?;
+        println!("{}", res);
+        Ok(res)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -30,32 +38,25 @@ impl Config {
 pub struct Unit {
     pub action: Option<Action>,
     #[serde(rename = "match")]
-    pub match_: Option<Match>,
-    pub listeners: Option<Vec<String>>,
+    pub match_: Match,
+    pub listeners: Vec<String>,
 }
 
-// Common structs to file config and unit config
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct Action {
-    // Reverse proxy
-    pub proxy: Option<String>,
-    // Public folder
-    pub share: Option<Vec<String>>,
-    pub chroot: Option<String>,
-    // Error
-    #[serde(rename = "return")]
-    pub return_number: Option<String>,
+#[cfg(test)]
+mod tests {
+    use super::Config;
+    use miette::Result;
 
-    pub rewrite: Option<String>,
-    pub pass: Option<String>,
-
-    pub fallback: Option<Box<Action>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct Match {
-    pub uri: Option<Vec<String>>,
-    pub source: Option<Vec<String>>,
+    #[test]
+    fn read_config_file() -> Result<()> {
+        let res = Config::from_toml("../examples/jucenit.toml")?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[test]
+    fn adapt_config_file() -> Result<()> {
+        let res = Config::from_toml("../examples/jucenit.toml")?;
+        res.adapt()?;
+        Ok(())
+    }
 }
