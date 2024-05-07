@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
 // exec
+use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -133,7 +134,8 @@ impl Config {
         file.write_all(bytes).into_diagnostic()?;
 
         // Modify file with editor
-        let output = Command::new("nvim")
+        let editor = env::var("EDITOR").into_diagnostic()?;
+        let output = Command::new(editor)
             .arg(path)
             .output()
             .expect("failed to execute process");

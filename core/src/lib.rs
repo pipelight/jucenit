@@ -1,4 +1,5 @@
 mod error;
+mod ssl;
 pub mod types;
 
 // Structs
