@@ -1,8 +1,7 @@
 // Clap - command line lib
 use clap::{Parser, Subcommand, ValueHint};
 // Verbosity
-pub use crate::verbosity::external::Verbosity;
-pub use crate::verbosity::internal::InternalVerbosity;
+pub use clap_verbosity::verbosity::internal::InternalVerbosity;
 // Serde
 use serde::{Deserialize, Serialize};
 // Struct

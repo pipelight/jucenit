@@ -5,7 +5,7 @@ use utils::teleport::Portal;
 use miette::{Error, IntoDiagnostic, Result};
 
 // Common structs to file config and unit config
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
 pub struct Action {
     // Reverse proxy
@@ -13,7 +13,7 @@ pub struct Action {
     pub proxy: Option<String>,
     // Public folder
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub share: Option<serde_json::Value>,
+    pub share: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chroot: Option<String>,
     // Error
@@ -30,11 +30,11 @@ pub struct Action {
     pub fallback: Option<Box<Action>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
 pub struct Match {
-    #[serde(skip_serializing_if = "serde_json::Value::is_null")]
-    pub uri: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<Vec<String>>,
 }

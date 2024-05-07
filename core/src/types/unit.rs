@@ -11,7 +11,12 @@ use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
-// Config file
+// exec
+use std::fs;
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
+use uuid::Uuid;
 
 pub static SETTINGS: Lazy<Arc<Mutex<Settings>>> =
     Lazy::new(|| Arc::new(Mutex::new(Settings::default())));
@@ -67,7 +72,7 @@ impl Default for Config {
     }
 }
 impl Config {
-    async fn get(&self) -> Result<Config> {
+    async fn get() -> Result<Config> {
         let settings = SETTINGS.lock().unwrap().clone();
         let config = reqwest::get(settings.get_url() + "/config")
             .await
@@ -95,6 +100,59 @@ impl Config {
 
         Ok(res)
     }
+    fn merge(mut old: Config, new: Config) -> Result<Config> {
+        // merge listeners
+        for (key, value) in new.listeners.iter() {
+            old.listeners.insert(key.to_owned(), value.to_owned());
+        }
+        // merge routes based on uniq match
+
+        let mut new_routes = new.routes.get("jucenit").unwrap().clone();
+        let mut old_routes = old.routes.get("jucenit").unwrap().clone();
+        old_routes.append(&mut new_routes);
+
+        old_routes.sort_by_key(|p| p.clone().match_);
+        old_routes.dedup_by_key(|p| p.clone().match_);
+
+        old.routes
+            .insert("jucenit".to_owned(), old_routes.to_owned());
+
+        Ok(old)
+    }
+    pub async fn edit(&self) -> Result<()> {
+        let uuid = Uuid::new_v4();
+        let path = format!("~/jucenit.{}.tmp.json", uuid);
+
+        // Retrieve config
+        let config = Config::get().await?;
+        let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
+
+        // Create and write to file
+        let mut file = fs::File::create(path.clone()).into_diagnostic()?;
+        let bytes = json.as_bytes();
+        file.write_all(bytes).into_diagnostic()?;
+
+        // Modify file with editor
+        let output = Command::new("nvim")
+            .arg(path)
+            .output()
+            .expect("failed to execute process");
+
+        // Update config
+        let settings = SETTINGS.lock().unwrap().clone();
+        let client = reqwest::Client::new();
+        let res = client
+            .put(settings.get_url() + "/config")
+            .body(output.stdout)
+            .send()
+            .await
+            .into_diagnostic()?
+            .json::<serde_json::Value>()
+            .await
+            .into_diagnostic()?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -111,7 +169,7 @@ pub struct Certificate {
     pub bundle: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Route {
     pub action: Option<Action>,
     #[serde(rename = "match")]
@@ -128,8 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_config() -> Result<()> {
-        let mut config = ConfigUnit::default();
-        let res = config.get().await?;
+        let res = ConfigUnit::get().await?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -147,6 +204,24 @@ mod tests {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let mut config = ConfigUnit::default();
         let res = config.set(ConfigUnit::from(&config_file)).await?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+
+    async fn merge_file_w_duplicates_to_actual() -> Result<()> {
+        let config_file = ConfigFile::from_toml("../examples/jucenit.more.toml")?;
+        let new = ConfigUnit::from(&config_file);
+        let old = ConfigUnit::get().await?;
+        let res = ConfigUnit::merge(old, new)?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn merge_file_to_actual() -> Result<()> {
+        let config_file = ConfigFile::from_toml("../examples/jucenit.else.toml")?;
+        let new = ConfigUnit::from(&config_file);
+        let old = ConfigUnit::get().await?;
+        let res = ConfigUnit::merge(old, new)?;
         println!("{:#?}", res);
         Ok(())
     }

@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = "4.5.4"
+clap-verbosity = "2.1.0"
 miette = "7.2.0"
 serde = "1.0.200"
 serde_toml = "0.0.1"
