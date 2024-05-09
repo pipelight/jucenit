@@ -13,7 +13,7 @@ use miette::{Error, IntoDiagnostic, Result};
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    pub unit: Option<Vec<Unit>>,
+    pub unit: Vec<Unit>,
 }
 
 impl Config {

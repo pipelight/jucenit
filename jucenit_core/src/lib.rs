@@ -77,14 +77,14 @@ impl Config {
 /**
  * Test loading a file from a given path
  */
-mod config_file {
+mod tests {
     use miette::Result;
 
     use crate::types::config::Config;
 
     #[test]
     fn read_toml() -> Result<()> {
-        let res = Config::from_toml("../examples/unit.toml")?;
+        let res = Config::from_toml("../examples/jucenit.toml")?;
         println!("{:#?}", res);
         Ok(())
     }

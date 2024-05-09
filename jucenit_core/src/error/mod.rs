@@ -1,7 +1,9 @@
 // Tests
 // mod test;
+
 // Error Handling
 use miette::{Diagnostic, SourceOffset, SourceSpan};
+use std::{convert, fmt, option};
 use thiserror::Error;
 
 #[derive(Error, Diagnostic, Debug)]

@@ -64,16 +64,17 @@ pub struct Config {
 }
 impl Default for Config {
     fn default() -> Self {
-        // Ensure an empty named route array exists
+        // Ensure usual web routes exist
         let mut routes = HashMap::new();
-        routes.insert("jucenit".to_owned(), vec![]);
+        routes.insert("jucenit_[*:80]".to_owned(), vec![]);
+        routes.insert("jucenit_[*:443]".to_owned(), vec![]);
 
         let listeners = HashMap::new();
         Config { routes, listeners }
     }
 }
 impl Config {
-    async fn get() -> Result<Config> {
+    pub async fn get() -> Result<Config> {
         let settings = SETTINGS.lock().unwrap().clone();
         let config = reqwest::get(settings.get_url() + "/config")
             .await
@@ -101,24 +102,28 @@ impl Config {
 
         Ok(res)
     }
-    fn merge(mut old: Config, new: Config) -> Result<Config> {
-        // merge listeners
+    fn merge(old: Config, new: Config) -> Result<Config> {
+        let mut merged = old;
         for (key, value) in new.listeners.iter() {
-            old.listeners.insert(key.to_owned(), value.to_owned());
+            // merge new listeners to old
+            merged.listeners.insert(key.to_owned(), value.to_owned());
+
+            // merge routes based on uniq match
+            // let route_name = format!("jucenit_[{}]", key);
+            // let mut new_routes = new.routes.get(&route_name).unwrap().clone();
         }
-        // merge routes based on uniq match
+        for (key, value) in new.routes.iter() {
+            // If route already exists then fuse and dedup
+            if let Some(route) = merged.routes.get_mut(key) {
+                route.extend(value.to_owned());
+                route.sort_by_key(|p| p.clone().match_);
+                route.dedup_by_key(|p| p.clone().match_);
+            } else {
+                merged.routes.insert(key.to_owned(), value.to_owned());
+            }
+        }
 
-        let mut new_routes = new.routes.get("jucenit").unwrap().clone();
-        let mut old_routes = old.routes.get("jucenit").unwrap().clone();
-        old_routes.append(&mut new_routes);
-
-        old_routes.sort_by_key(|p| p.clone().match_);
-        old_routes.dedup_by_key(|p| p.clone().match_);
-
-        old.routes
-            .insert("jucenit".to_owned(), old_routes.to_owned());
-
-        Ok(old)
+        Ok(merged)
     }
     pub async fn edit(&self) -> Result<()> {
         let uuid = Uuid::new_v4();
@@ -126,11 +131,13 @@ impl Config {
 
         // Retrieve config
         let config = Config::get().await?;
-        let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
+        let toml = toml::to_string_pretty(&ConfigFile::from(&(Config::get().await?))).into_diagnostic()?;
+        // let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
 
         // Create and write to file
         let mut file = fs::File::create(path.clone()).into_diagnostic()?;
-        let bytes = json.as_bytes();
+        // let bytes = json.as_bytes();
+        let bytes = toml.as_bytes();
         file.write_all(bytes).into_diagnostic()?;
 
         // Modify file with editor
@@ -210,6 +217,7 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
     async fn merge_file_w_duplicates_to_actual() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.more.toml")?;
         let new = ConfigUnit::from(&config_file);
@@ -223,6 +231,14 @@ mod tests {
         let config_file = ConfigFile::from_toml("../examples/jucenit.else.toml")?;
         let new = ConfigUnit::from(&config_file);
         let old = ConfigUnit::get().await?;
+        let res = ConfigUnit::merge(old, new)?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[test]
+    fn merge_config() -> Result<()> {
+        let old = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.toml")?);
+        let new = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.else.toml")?);
         let res = ConfigUnit::merge(old, new)?;
         println!("{:#?}", res);
         Ok(())

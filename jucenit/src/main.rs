@@ -1,14 +1,12 @@
-use utils::file;
-
+use miette::{Error, IntoDiagnostic, Result};
 /**
 The jucenit binary entrypoint.
 This main function is the first function to be executed when launching pipelight.
 */
 fn main() -> Result<()> {
-    trace!("Launch process.");
+    // trace!("Launch process.");
     // Read config file
-
-    trace!("Process clean exit.");
+    // trace!("Process clean exit.");
     Ok(())
 }
 
