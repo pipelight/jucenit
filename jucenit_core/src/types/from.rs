@@ -28,6 +28,47 @@ impl From<&ConfigUnit> for ConfigFile {
     }
 }
 
+impl From<&Unity> for ConfigUnit {
+    fn from(e: &Unity) -> Self {
+        let mut unit_config = ConfigUnit::default();
+
+        let mut route_vec: Vec<UnitRoute> = vec![];
+
+        let mut listeners = HashMap::new();
+        let mut routes: HashMap<String, Vec<UnitRoute>> = HashMap::new();
+
+        for listener in e.listeners.clone() {
+            // add listeners to unit
+            let route_name = format!("jucenit_[{}]", listener);
+            listeners.insert(
+                listener,
+                ListenerOpts {
+                    pass: "routes/".to_owned() + &route_name,
+                    tls: None,
+                },
+            );
+            // add named route
+            let route = UnitRoute {
+                action: e.action.clone(),
+                match_: e.match_.clone(),
+            };
+            route_vec.push(route);
+
+            // insert or update unit route
+            if unit_config.routes.get(&route_name).is_some() {
+                unit_config
+                    .routes
+                    .get_mut(&route_name)
+                    .unwrap()
+                    .extend(route_vec.clone());
+            } else {
+                unit_config.routes.insert(route_name, route_vec.clone());
+            }
+        }
+        return unit_config;
+    }
+}
+
 impl From<&ConfigFile> for ConfigUnit {
     fn from(config_file: &ConfigFile) -> Self {
         let mut unit_config = ConfigUnit::default();

@@ -87,7 +87,7 @@ impl Config {
     /**
      * You can only PUT object to replace the actual configuration
      */
-    async fn set(&self, config: Config) -> Result<serde_json::Value> {
+    async fn set(&self, config: &Config) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
@@ -102,8 +102,16 @@ impl Config {
 
         Ok(res)
     }
-    fn merge(old: Config, new: Config) -> Result<Config> {
-        let mut merged = old;
+
+    pub async fn update(new: &Config)-> Result<()> {
+        let old = Config::get().await?;
+        Config::merge(&old,&new)?;
+        Ok(())
+    }
+
+
+    fn merge(old: &Config, new: &Config) -> Result<Config> {
+        let mut merged = old.to_owned();
         for (key, value) in new.listeners.iter() {
             // merge new listeners to old
             merged.listeners.insert(key.to_owned(), value.to_owned());
@@ -122,9 +130,9 @@ impl Config {
                 merged.routes.insert(key.to_owned(), value.to_owned());
             }
         }
-
         Ok(merged)
     }
+
     pub async fn edit(&self) -> Result<()> {
         // Make temporary file
         let uuid = Uuid::new_v4();
@@ -208,7 +216,7 @@ mod tests {
     #[tokio::test]
     async fn set_config() -> Result<()> {
         let mut config = ConfigUnit::default();
-        let res = config.set(ConfigUnit::default()).await?;
+        let res = config.set(&ConfigUnit::default()).await?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -217,7 +225,7 @@ mod tests {
     async fn set_from_file() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let mut config = ConfigUnit::default();
-        let res = config.set(ConfigUnit::from(&config_file)).await?;
+        let res = config.set(&ConfigUnit::from(&config_file)).await?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -227,7 +235,7 @@ mod tests {
         let config_file = ConfigFile::from_toml("../examples/jucenit.more.toml")?;
         let new = ConfigUnit::from(&config_file);
         let old = ConfigUnit::get().await?;
-        let res = ConfigUnit::merge(old, new)?;
+        let res = ConfigUnit::merge(&old, &new)?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -236,7 +244,7 @@ mod tests {
         let config_file = ConfigFile::from_toml("../examples/jucenit.else.toml")?;
         let new = ConfigUnit::from(&config_file);
         let old = ConfigUnit::get().await?;
-        let res = ConfigUnit::merge(old, new)?;
+        let res = ConfigUnit::merge(&old, &new)?;
         println!("{:#?}", res);
         Ok(())
     }
@@ -244,7 +252,7 @@ mod tests {
     fn merge_config() -> Result<()> {
         let old = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.toml")?);
         let new = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.else.toml")?);
-        let res = ConfigUnit::merge(old, new)?;
+        let res = ConfigUnit::merge(&old, &new)?;
         println!("{:#?}", res);
         Ok(())
     }
