@@ -1,12 +1,19 @@
+// Error Handling
+use log::trace;
 use miette::{Error, IntoDiagnostic, Result};
+// Clap
+use cli::Cli;
+
 /**
 The jucenit binary entrypoint.
 This main function is the first function to be executed when launching pipelight.
 */
-fn main() -> Result<()> {
-    // trace!("Launch process.");
-    // Read config file
-    // trace!("Process clean exit.");
+#[tokio::main]
+async fn main() -> Result<()> {
+    trace!("Launch process.");
+    make_handler()?;
+    Cli::run().await?;
+    trace!("Process clean exit.");
     Ok(())
 }
 

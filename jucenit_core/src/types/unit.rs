@@ -3,9 +3,9 @@ use super::{
     config::Config as ConfigFile,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::default::Default;
 use std::future::Future;
+use std::{collections::HashMap, env::temp_dir};
 // Global vars
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use uuid::Uuid;
 
 pub static SETTINGS: Lazy<Arc<Mutex<Settings>>> =
@@ -126,33 +126,36 @@ impl Config {
         Ok(merged)
     }
     pub async fn edit(&self) -> Result<()> {
+        // Make temporary file
         let uuid = Uuid::new_v4();
-        let path = format!("~/jucenit.{}.tmp.json", uuid);
+        let tmp_dir = "/tmp/jucenit";
+        fs::create_dir_all(tmp_dir).into_diagnostic()?;
+        let path = format!("/tmp/jucenit/jucenit.config.tmp.{}.toml", uuid);
 
         // Retrieve config
-        let config = Config::get().await?;
-        let toml = toml::to_string_pretty(&ConfigFile::from(&(Config::get().await?))).into_diagnostic()?;
-        // let json = serde_json::to_string_pretty(&config).into_diagnostic()?;
-
+        let toml = toml::to_string_pretty(&ConfigFile::from(self)).into_diagnostic()?;
         // Create and write to file
         let mut file = fs::File::create(path.clone()).into_diagnostic()?;
-        // let bytes = json.as_bytes();
         let bytes = toml.as_bytes();
         file.write_all(bytes).into_diagnostic()?;
 
         // Modify file with editor
         let editor = env::var("EDITOR").into_diagnostic()?;
-        let output = Command::new(editor)
-            .arg(path)
-            .output()
-            .expect("failed to execute process");
+        let child = Command::new(editor)
+            .arg(path.clone())
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("Couldn't spawn a detached subprocess");
+        let output = child.wait_with_output().into_diagnostic()?;
 
-        // Update config
+        // Update nginx-unit config
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
             .put(settings.get_url() + "/config")
-            .body(output.stdout)
+            .body(ConfigFile::load(&path)?.adapt()?)
             .send()
             .await
             .into_diagnostic()?
@@ -160,6 +163,8 @@ impl Config {
             .await
             .into_diagnostic()?;
 
+        // Clean up tmp files before exit
+        fs::remove_file(path).into_diagnostic()?;
         Ok(())
     }
 }

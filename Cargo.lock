@@ -350,6 +350,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "clap-verbosity",
+ "jucenit_core",
  "miette 7.2.0",
  "serde",
  "serde_toml",
@@ -1290,7 +1291,10 @@ dependencies = [
 name = "jucenit"
 version = "0.1.0"
 dependencies = [
+ "cli",
+ "log",
  "miette 7.2.0",
+ "tokio",
 ]
 
 [[package]]

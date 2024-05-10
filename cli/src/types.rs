@@ -7,6 +7,8 @@ pub use clap_verbosity::Verbosity;
 use serde::{Deserialize, Serialize};
 // Error Handling
 use miette::Result;
+//
+use jucenit_core::{ConfigFile, ConfigUnit};
 
 /*
 The Cli struct is the entrypoint for command line argument parsing:
@@ -38,6 +40,24 @@ pub struct Cli {
 impl Cli {
     pub fn hydrate() -> Result<()> {
         let cli = Cli::parse();
+        Ok(())
+    }
+    pub async fn run() -> Result<()> {
+        let cli = Cli::parse();
+        match cli.commands {
+            Commands::Adapt => {
+                ConfigFile::get()?.adapt()?;
+                // run stuff
+            }
+            Commands::Edit => {
+                ConfigUnit::get().await?.edit().await?;
+                // run stuff
+            }
+            _ => {
+
+                // Err
+            }
+        };
         Ok(())
     }
 }
