@@ -3,7 +3,9 @@ import { pipeline, step } from "https://deno.land/x/pipelight/mod.ts";
 
 const name = "dummy";
 
-// Make a self signed cert
+/*
+ * Upload a dummy self signed certificate to nginx unit
+ */
 const openssl = pipeline("openssl", () => [
   step("ensure tmp dir", () => [
     "mkdir -p /tmp/jucenit",
@@ -17,6 +19,12 @@ const openssl = pipeline("openssl", () => [
       -days 3650 \
       -nodes \
       -subj '/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=example.com'`,
+  ]),
+  step("generate bundle", () => [
+    `cat /tmp/jucenit/cert_${name}.pem /tmp/jucenit/key_${name}.pem > /tmp/jucenit/bundle_dummy.pem`,
+  ]),
+  step("update unit", () => [
+    `curl -X PUT --data-binary @/tmp/jucenit/bundle_${name}.pem http://localhost:8080/certificates/bundle`,
   ]),
 ]);
 
