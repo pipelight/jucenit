@@ -1,7 +1,3 @@
-use super::{
-    common::{Action, Match},
-    config::Config as ConfigFile,
-};
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::future::Future;
@@ -12,16 +8,28 @@ use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
 // exec
-use std::env;
+use super::CertificateStore;
+use crate::ssl;
+use crate::ssl::Fake as FakeCertificate;
+use crate::ssl::Letsencrypt as LetsencryptCertificate;
+
+// Config file
+use crate::cast::{Action, Config as ConfigFile, Match};
+
+use http::uri::Uri;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::{clone, env};
 use uuid::Uuid;
 
 pub static SETTINGS: Lazy<Arc<Mutex<Settings>>> =
     Lazy::new(|| Arc::new(Mutex::new(Settings::default())));
 
+/*
+* A struct to query the good nginx-unit socket or port.
+*/
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub url: Option<String>,
@@ -36,7 +44,7 @@ impl Default for Settings {
     }
 }
 impl Settings {
-    fn get_url(&self) -> String {
+    pub fn get_url(&self) -> String {
         if let Some(url) = &self.url {
             return url.to_owned();
         } else if let Some(socket) = &self.socket {
@@ -50,13 +58,50 @@ impl Settings {
 // Unit identical structs
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct Unit {
+pub struct Nginx {
     pub config: Config,
     pub certificates: serde_json::Value,
     pub status: serde_json::Value,
     #[serde(skip)]
     pub settings: Settings,
 }
+
+impl Nginx {
+    /**
+     * Generate and upload certificates to unit
+     */
+    pub async fn set_certificates() -> Result<(serde_json::Value)> {
+        let mut config = Config::get().await?;
+        for (key, val) in config.routes.iter() {
+            for route in val {
+                if let Some(host) = &route.match_.host {
+                    let dns = host;
+                    let account = ssl::pebble::pebble_account().await?.clone();
+                    let res = CertificateStore::update(
+                        dns,
+                        &LetsencryptCertificate::get(dns, &account).await?,
+                    )
+                    .await?;
+                    println!("{:#?}", res);
+                    for (key, val) in config.listeners.iter_mut() {
+                        if let Some(tls) = &mut val.tls {
+                            tls.certificate.push(host.to_owned());
+                        } else {
+                            val.tls = Some(Tls {
+                                certificate: vec![host.to_owned()],
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        println!("{:#?}", config);
+        let res = Config::set(&config).await?;
+        println!("{:#?}", res);
+        Ok(res)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub listeners: HashMap<String, ListenerOpts>,
@@ -70,6 +115,7 @@ impl Default for Config {
         routes.insert("jucenit_[*:443]".to_owned(), vec![]);
 
         let listeners = HashMap::new();
+
         Config { routes, listeners }
     }
 }
@@ -87,7 +133,7 @@ impl Config {
     /**
      * You can only PUT object to replace the actual configuration
      */
-    async fn set(&self, config: &Config) -> Result<serde_json::Value> {
+    pub async fn set(config: &Config) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
@@ -99,16 +145,36 @@ impl Config {
             .json::<serde_json::Value>()
             .await
             .into_diagnostic()?;
-
         Ok(res)
     }
 
-    pub async fn update(new: &Config)-> Result<()> {
+    async fn clean() -> Result<serde_json::Value> {
+        let settings = SETTINGS.lock().unwrap().clone();
+        let client = reqwest::Client::new();
+        let res = CertificateStore::remove_all().await?;
+        let res = client
+            .put(settings.get_url() + "/config")
+            .body(serde_json::to_string(&Config::default()).into_diagnostic()?)
+            .send()
+            .await
+            .into_diagnostic()?
+            .json::<serde_json::Value>()
+            .await
+            .into_diagnostic()?;
+        Ok(res)
+    }
+    pub async fn update(new: &Config) -> Result<()> {
         let old = Config::get().await?;
-        Config::merge(&old,&new)?;
+        let res = Config::merge(&old, &new)?;
+        Config::set(&res).await?;
         Ok(())
     }
-
+    pub async fn delete(new: &Config) -> Result<()> {
+        let old = Config::get().await?;
+        let res = Config::unmerge(&old, &new)?;
+        Config::set(&res).await?;
+        Ok(())
+    }
 
     fn merge(old: &Config, new: &Config) -> Result<Config> {
         let mut merged = old.to_owned();
@@ -131,6 +197,19 @@ impl Config {
             }
         }
         Ok(merged)
+    }
+    fn unmerge(old: &Config, new: &Config) -> Result<Config> {
+        let mut unmerged = old.to_owned();
+        for (key, old_route) in unmerged.routes.iter_mut() {
+            if let Some(new_route) = new.routes.get(key) {
+                for step in new_route.clone() {
+                    if let Some(index) = old_route.iter().position(|e| e == &step) {
+                        old_route.remove(index);
+                    }
+                }
+            }
+        }
+        Ok(unmerged)
     }
 
     pub async fn edit(&self) -> Result<()> {
@@ -182,13 +261,13 @@ impl Config {
 pub struct ListenerOpts {
     pub pass: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tls: Option<Certificate>,
+    pub tls: Option<Tls>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct Certificate {
-    pub bundle: Vec<String>,
+pub struct Tls {
+    pub certificate: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -201,58 +280,86 @@ pub struct Route {
 #[cfg(test)]
 mod tests {
 
-    use super::Config as ConfigUnit;
-    use super::ConfigFile;
-
+    use super::{Config, Nginx};
+    use crate::cast::Config as ConfigFile;
+    // Error handling
     use miette::Result;
 
-    #[tokio::test]
+    // #[tokio::test]
+    async fn clean_config() -> Result<()> {
+        let res = Config::clean().await?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+
+    // #[tokio::test]
+    async fn remove_certs() -> Result<()> {
+        // let res = Unit::remove_certificates().await?;
+        // println!("{:#?}", res);
+        Ok(())
+    }
+
+    // #[tokio::test]
     async fn get_config() -> Result<()> {
-        let res = ConfigUnit::get().await?;
+        let res = Config::get().await?;
         println!("{:#?}", res);
         Ok(())
     }
 
-    #[tokio::test]
+    // #[tokio::test]
     async fn set_config() -> Result<()> {
-        let mut config = ConfigUnit::default();
-        let res = config.set(&ConfigUnit::default()).await?;
+        let res = Config::set(&Config::default()).await?;
         println!("{:#?}", res);
         Ok(())
     }
 
-    #[tokio::test]
+    // #[tokio::test]
     async fn set_from_file() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        let mut config = ConfigUnit::default();
-        let res = config.set(&ConfigUnit::from(&config_file)).await?;
+        let res = Config::set(&Config::from(&config_file)).await?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn set_from_file_and_tls() -> Result<()> {
+        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let res = Config::set(&Config::from(&config_file)).await?;
+        Nginx::set_certificates().await?;
         println!("{:#?}", res);
         Ok(())
     }
 
     #[tokio::test]
     async fn merge_file_w_duplicates_to_actual() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.more.toml")?;
-        let new = ConfigUnit::from(&config_file);
-        let old = ConfigUnit::get().await?;
-        let res = ConfigUnit::merge(&old, &new)?;
-        println!("{:#?}", res);
+        let config_file = ConfigFile::from_toml("../examples/jucenit.merge2.toml")?;
+        let new = Config::from(&config_file);
+        let old = Config::get().await?;
+        let res = Config::merge(&old, &new)?;
+        // println!("{:#?}", res);
         Ok(())
     }
     #[tokio::test]
     async fn merge_file_to_actual() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.else.toml")?;
-        let new = ConfigUnit::from(&config_file);
-        let old = ConfigUnit::get().await?;
-        let res = ConfigUnit::merge(&old, &new)?;
-        println!("{:#?}", res);
+        let config_file = ConfigFile::from_toml("../examples/jucenit.merge1.toml")?;
+        let new = Config::from(&config_file);
+        let old = Config::get().await?;
+        let res = Config::merge(&old, &new)?;
+        // println!("{:#?}", res);
         Ok(())
     }
     #[test]
-    fn merge_config() -> Result<()> {
-        let old = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.toml")?);
-        let new = ConfigUnit::from(&ConfigFile::from_toml("../examples/jucenit.else.toml")?);
-        let res = ConfigUnit::merge(&old, &new)?;
+    fn merge_config_chunks() -> Result<()> {
+        let old = Config::from(&ConfigFile::from_toml("../examples/jucenit.toml")?);
+        let new = Config::from(&ConfigFile::from_toml("../examples/jucenit.merge1.toml")?);
+        let res = Config::merge(&old, &new)?;
+        // println!("{:#?}", res);
+        Ok(())
+    }
+    #[test]
+    fn unmerge_config_chunks() -> Result<()> {
+        let old = Config::from(&ConfigFile::from_toml("../examples/jucenit.merge2.toml")?);
+        let new = Config::from(&ConfigFile::from_toml("../examples/jucenit.merge1.toml")?);
+        let res = Config::unmerge(&old, &new)?;
         println!("{:#?}", res);
         Ok(())
     }

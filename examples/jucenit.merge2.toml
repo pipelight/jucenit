@@ -2,16 +2,16 @@
 listeners = ["*:80"]
 
 [unit.match]
-uri = "http://example.com/"
+host = "example.com"
 
 [unit.action]
-proxy = "http://127.0.0.1:8888"
+proxy = "http://127.0.0.1:9080"
 
 [[unit]]
 listeners = ["*:80"]
 
 [unit.match]
-uri = "http://test.com/"
+host = "test.com"
 
 [unit.action]
 proxy = "http://127.0.0.1:8333"

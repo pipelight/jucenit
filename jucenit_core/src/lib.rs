@@ -1,7 +1,6 @@
+mod cast;
 mod error;
+pub mod nginx;
 mod ssl;
-pub mod types;
-pub use types::config::{Config as ConfigFile,Unit as Unity};
-pub use types::common::{Action,Match};
-pub use types::unit::Config as ConfigUnit;
-
+pub use cast::{Action, Config as ConfigFile, Match};
+pub use nginx::{Config as NginxConfig, Nginx};

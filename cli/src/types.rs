@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 // Error Handling
 use miette::Result;
 //
-use jucenit_core::{ConfigFile, ConfigUnit};
+use jucenit_core::{ConfigFile, NginxConfig};
 
 /*
 The Cli struct is the entrypoint for command line argument parsing:
@@ -30,8 +30,8 @@ pub struct Cli {
      * for every subcommands.
      */
     /// Set a config file
-    #[arg(long, global = true, hide = true, value_name="FILE" ,value_hint = ValueHint::FilePath)]
-    pub config: Option<String>,
+    // #[arg(long, global = true, hide = true, value_name="FILE" ,value_hint = ValueHint::FilePath)]
+    // pub config: Option<String>,
 
     /// Set verbosity level
     #[clap(flatten)]
@@ -45,12 +45,28 @@ impl Cli {
     pub async fn run() -> Result<()> {
         let cli = Cli::parse();
         match cli.commands {
-            Commands::Adapt => {
-                ConfigFile::get()?.adapt()?;
+            Commands::Adapt(args) => {
+                if let Some(file) = args.file {
+                    NginxConfig::update(&NginxConfig::from(&ConfigFile::load(&file)?)).await?;
+                } else {
+                    NginxConfig::update(&NginxConfig::from(&ConfigFile::get()?)).await?;
+                }
+                // run stuff
+            }
+            Commands::Push(args) => {
+                if let Some(file) = args.file {
+                    ConfigFile::load(&file)?.adapt()?;
+                } else {
+                    ConfigFile::get()?.adapt()?;
+                }
                 // run stuff
             }
             Commands::Edit => {
-                ConfigUnit::get().await?.edit().await?;
+                NginxConfig::get().await?.edit().await?;
+                // run stuff
+            }
+            Commands::Watch => {
+                NginxConfig::get().await?.edit().await?;
                 // run stuff
             }
             _ => {
@@ -64,29 +80,56 @@ impl Cli {
 
 /*
 An enumaration over the differen types of commands available:
-- PreCommand that only needs a partial env to run,
-- PostCommands that needs the full env to be loaded to run.
 */
 #[derive(Debug, Clone, Eq, PartialEq, Subcommand)]
 pub enum Commands {
-    Adapt,
+    Adapt(File),
+    Push(File),
     Edit,
     Update,
+    Watch,
+}
+#[derive(Debug, Clone, Eq, PartialEq, Parser)]
+pub struct File {
+    #[arg(long)]
+    pub file: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Cli, Commands};
     use clap::FromArgMatches;
-    use clap::{builder::PossibleValue, Args, Command, Parser, Subcommand, ValueHint};
-    use miette::Result;
+    use clap::Parser;
 
-    #[test]
+    use assert_cmd::prelude::*; // Add methods on commands
+    use miette::{IntoDiagnostic, Result};
+    use std::process::Command; // Run commnds
+
+    // #[test]
     fn parse_command_line() -> Result<()> {
         let e = "jucenit --help";
         let os_str: Vec<&str> = e.split(' ').collect();
         let cli = Cli::parse_from(os_str);
         println!("{:#?}", cli);
+        Ok(())
+    }
+    #[test]
+    fn adapt_file() -> Result<()> {
+        let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
+        cmd.arg("adapt")
+            .arg("--file")
+            .arg("../examples/jucenit.toml");
+        // .arg("examples/jucenit.toml");
+        cmd.assert().success();
+        Ok(())
+    }
+    #[test]
+    fn update_config() -> Result<()> {
+        let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
+        cmd.arg("push")
+            .arg("--file")
+            .arg("../examples/jucenit.toml");
+        cmd.assert().success();
         Ok(())
     }
 }

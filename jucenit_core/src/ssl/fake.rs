@@ -2,25 +2,36 @@
 use std::fs;
 use std::io::Write;
 use uuid::Uuid;
-// Crate structs
-use crate::{Action, ConfigFile, ConfigUnit, Match, Unity};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
+// Certificate generation
 
-pub fn make_dummy_cert(dns: &str) -> Result<()> {
+use rcgen::{generate_simple_self_signed, CertifiedKey};
 
-    Ok(())
+// Global vars
+use crate::nginx::SETTINGS;
+
+#[derive(Debug, Clone, Default)]
+pub struct Fake;
+impl Fake {
+    pub fn get(dns: &str) -> Result<String> {
+        let names = vec![dns.to_owned()];
+        let CertifiedKey { cert, key_pair } =
+            generate_simple_self_signed(names).into_diagnostic()?;
+        let bundle = format!("{}{}", cert.pem(), key_pair.serialize_pem());
+        Ok(bundle)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::make_dummy_cert;
+    use super::Fake;
     use miette::Result;
 
-    // #[tokio::test]
-    async fn get_dummy_cert() -> Result<()> {
-        make_dummy_cert("crocuda.com")?;
-        // println!("{:#?}", res);
+    #[test]
+    fn get_dummy_bundle() -> Result<()> {
+        let res = Fake::get("example.com")?;
+        println!("{}", res);
         Ok(())
     }
 }

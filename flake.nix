@@ -1,5 +1,5 @@
 {
-  description = "Pipelight - Tiny automation pipelines";
+  description = "Jucenit - Easy proxy with autossl";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

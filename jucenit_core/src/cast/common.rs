@@ -34,6 +34,10 @@ pub struct Action {
 #[serde(deny_unknown_fields)]
 pub struct Match {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub hosts: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub uri: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<Vec<String>>,

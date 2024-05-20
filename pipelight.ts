@@ -7,10 +7,18 @@ const name = "dummy";
  * Upload a dummy self signed certificate to nginx unit
  */
 const openssl = pipeline("openssl", () => [
-  step("ensure tmp dir", () => [
-    "mkdir -p /tmp/jucenit",
+  step("ensure tmp dir", () => ["mkdir -p /tmp/jucenit"]),
+  step("generate minimal cert", () => [
+    `openssl req \
+      -x509 -newkey rsa:4096 \
+      -sha256 \
+      -keyout /tmp/jucenit/key_${name}_minimal.pem \
+      -out /tmp/jucenit/cert_${name}_minimal.pem \
+      -days 3650 \
+      -nodes \
+      -subj '/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=example.com'`,
   ]),
-  step("generate cert", () => [
+  step("generate cert with info", () => [
     `openssl req \
       -x509 -newkey rsa:4096 \
       -sha256 \

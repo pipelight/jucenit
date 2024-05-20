@@ -1,2 +1,6 @@
-pub mod fake;
-pub mod letsencrypt;
+mod fake;
+mod letsencrypt;
+pub mod pebble;
+// Reexport
+pub use fake::Fake;
+pub use letsencrypt::Letsencrypt;

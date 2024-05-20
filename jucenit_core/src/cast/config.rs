@@ -1,5 +1,5 @@
 use super::common::{Action, Match};
-use super::unit::Config as ConfigUnit;
+use crate::nginx::Config as NginxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utils::teleport::Portal;
@@ -10,7 +10,6 @@ use miette::{Error, IntoDiagnostic, Result};
 use std::fs;
 use std::path::Path;
 use utils::files::FileType;
-
 
 // Config file related structs
 /**
@@ -32,7 +31,7 @@ impl Config {
         Ok(config)
     }
     pub fn adapt(&self) -> Result<String> {
-        let config = ConfigUnit::from(self);
+        let config = NginxConfig::from(self);
         let res = serde_json::to_string_pretty(&config).into_diagnostic()?;
         println!("{}", res);
         Ok(res)
@@ -109,18 +108,18 @@ pub struct Unit {
 
 #[cfg(test)]
 mod tests {
-    use super::Config;
+    use super::Config as ConfigFile;
     use miette::Result;
 
     #[test]
     fn read_config_file() -> Result<()> {
-        let res = Config::from_toml("../examples/jucenit.toml")?;
+        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
         println!("{:#?}", res);
         Ok(())
     }
     #[test]
     fn adapt_config_file() -> Result<()> {
-        let res = Config::from_toml("../examples/jucenit.toml")?;
+        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
         res.adapt()?;
         Ok(())
     }
@@ -129,14 +128,14 @@ mod tests {
      * Test loading a file from a given path
      */
     fn read_toml() -> Result<()> {
-        let res = Config::from_toml("../examples/jucenit.toml")?;
+        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
         println!("{:#?}", res);
         Ok(())
     }
 
     #[test]
     fn seek_file() -> Result<()> {
-        let res = Config::get()?;
+        let res = ConfigFile::get()?;
         println!("{:#?}", res);
         Ok(())
     }
