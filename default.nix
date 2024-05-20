@@ -5,12 +5,17 @@
 }:
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "jucenit";
-  version = "0.1.22";
+  version = "0.2.0";
   src = ./.;
 
   cargoLock = {
     lockFile = ./Cargo.lock;
+    outputHashes = {
+      # "acme2-0.5.2" = lib.fakeSha256;
+      "acme2-0.5.2" = "sha256-tais3v7bbJDcIJY+WjTxzulKDoDlsXG9VT7MVU/VpLI=";
+    };
   };
+
   # cargoBuildHook = ''
   # buildPhase = ''
   #   cargo build --release
@@ -32,10 +37,10 @@ pkgs.rustPlatform.buildRustPackage rec {
   ];
   PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
 
-  postInstall = with lib; ''
-    installShellCompletion --cmd ${pname}\
-      --bash ./autocompletion/${pname}.bash \
-      --fish ./autocompletion/${pname}.fish \
-      --zsh  ./autocompletion/_${pname}
-  '';
+  # postInstall = with lib; ''
+  #   installShellCompletion --cmd ${pname}\
+  #     --bash ./autocompletion/${pname}.bash \
+  #     --fish ./autocompletion/${pname}.fish \
+  #     --zsh  ./autocompletion/_${pname}
+  # '';
 }
