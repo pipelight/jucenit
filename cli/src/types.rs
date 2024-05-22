@@ -3,12 +3,13 @@ use clap::FromArgMatches;
 use clap::{builder::PossibleValue, Args, Command, Parser, Subcommand, ValueHint};
 // Verbosity
 pub use clap_verbosity::Verbosity;
+use jucenit_core::nginx::CertificateStore;
 // Serde
 use serde::{Deserialize, Serialize};
 // Error Handling
 use miette::Result;
 //
-use jucenit_core::{ConfigFile, NginxConfig};
+use jucenit_core::{ConfigFile, Nginx, NginxConfig};
 
 /*
 The Cli struct is the entrypoint for command line argument parsing:
@@ -66,7 +67,7 @@ impl Cli {
                 // run stuff
             }
             Commands::Watch => {
-                NginxConfig::get().await?.edit().await?;
+                Nginx::listen_config().await?;
                 // run stuff
             }
             _ => {

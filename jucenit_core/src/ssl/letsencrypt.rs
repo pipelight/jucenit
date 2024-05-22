@@ -184,7 +184,6 @@ impl Letsencrypt {
 
         let mut bundle: String = "".to_owned();
         for cert in certificates.clone() {
-            println!("{:#?}", cert);
             let cert = cert.to_pem().into_diagnostic()?;
             let cert = String::from_utf8(cert).into_diagnostic()?;
             bundle += &cert;

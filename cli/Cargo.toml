@@ -13,3 +13,4 @@ serde = "1.0.200"
 serde_toml = "0.0.1"
 jucenit_core = {path = "../jucenit_core"}
 assert_cmd = "2.0.14"
+futures = "0.3.30"

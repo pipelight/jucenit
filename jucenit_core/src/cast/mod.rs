@@ -1,5 +1,5 @@
 mod common;
-mod config;
+pub mod config;
 
 // Public Reexport
 pub use common::{Action, Match};
