@@ -11,6 +11,12 @@ use chrono::{DateTime, Duration, FixedOffset, NaiveDateTime, Utc};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawCertificate {
+    key: String,
+    chain: Vec<CertificateInfo>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CertificateInfo {
     subject: Identity,
     issuer: Identity,
@@ -93,17 +99,15 @@ impl CertificateStore {
         let res = reqwest::get(settings.get_url() + "/certificates")
             .await
             .into_diagnostic()?
-            .json::<HashMap<String, CertificateInfo>>()
-            .await;
-        match res {
-            Ok(res) => Ok(res),
-            Err(_) => {
-                let empty: HashMap<String, CertificateInfo> = HashMap::new();
-                Ok(empty)
-                // let message = "No certificates in the store".to_owned();
-                // Err(Error::msg(message))
-            }
+            .json::<HashMap<String, RawCertificate>>()
+            .await
+            .into_diagnostic()?;
+
+        let mut map: HashMap<String, CertificateInfo> = HashMap::new();
+        for (k, v) in res.iter() {
+            map.insert(k.to_owned(), v.chain.first().unwrap().to_owned());
         }
+        Ok(map)
     }
     /**
      * Get every certificate non close to expirity from nginx-unit certificate store.
@@ -144,6 +148,13 @@ mod tests {
         let bundle = FakeCertificate::get(dns)?;
 
         let res = CertificateStore::update(dns, &bundle).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_all_certs() -> Result<()> {
+        let res = CertificateStore::get_all().await?;
+        println!("{:#?}", res);
         Ok(())
     }
 

@@ -151,6 +151,12 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn clean_cert_store() -> Result<()> {
+        let res = CertificateStore::clean().await?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[tokio::test]
     async fn remove_cert() -> Result<()> {
         let dns = "example.com";
         let res = CertificateStore::remove(dns).await?;
