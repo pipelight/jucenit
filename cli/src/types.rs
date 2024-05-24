@@ -66,6 +66,13 @@ impl Cli {
                 NginxConfig::get().await?.edit().await?;
                 // run stuff
             }
+            Commands::Clean(args) => {
+                NginxConfig::set(&NginxConfig::default()).await?;
+                if args.ssl {
+                    CertificateStore::clean().await?;
+                }
+                // run stuff
+            }
             Commands::Ssl(args) => {
                 if args.renew {
                     CertificateStore::hydrate().await?;
@@ -91,6 +98,7 @@ pub enum Commands {
     Push(File),
     #[command(arg_required_else_help = true)]
     Ssl(Ssl),
+    Clean(Endpoints),
     Edit,
     Update,
 }
@@ -99,6 +107,12 @@ pub enum Commands {
 pub struct File {
     #[arg(long)]
     pub file: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Parser)]
+pub struct Endpoints {
+    #[arg(long)]
+    pub ssl: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
