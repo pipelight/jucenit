@@ -11,6 +11,6 @@ clap-verbosity = "2.1.0"
 miette = "7.2.0"
 serde = "1.0.200"
 serde_toml = "0.0.1"
-jucenit_core = {path = "../jucenit_core"}
+jucenit_core = { path = "../jucenit_core" }
 assert_cmd = "2.0.14"
 futures = "0.3.30"

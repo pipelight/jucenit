@@ -66,9 +66,10 @@ impl Cli {
                 NginxConfig::get().await?.edit().await?;
                 // run stuff
             }
-            Commands::Watch => {
-                Nginx::listen_config().await?;
-                // run stuff
+            Commands::Ssl(args) => {
+                if args.renew {
+                    CertificateStore::hydrate().await?;
+                }
             }
             _ => {
 
@@ -84,16 +85,28 @@ An enumaration over the differen types of commands available:
 */
 #[derive(Debug, Clone, Eq, PartialEq, Subcommand)]
 pub enum Commands {
+    #[command(arg_required_else_help = true)]
     Adapt(File),
+    #[command(arg_required_else_help = true)]
     Push(File),
+    #[command(arg_required_else_help = true)]
+    Ssl(Ssl),
     Edit,
     Update,
-    Watch,
 }
+
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
 pub struct File {
     #[arg(long)]
     pub file: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Parser)]
+pub struct Ssl {
+    #[arg(long)]
+    pub renew: bool,
+    #[arg(long)]
+    pub watch: bool,
 }
 
 #[cfg(test)]

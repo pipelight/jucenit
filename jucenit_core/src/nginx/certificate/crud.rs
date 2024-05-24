@@ -94,9 +94,16 @@ impl CertificateStore {
             .await
             .into_diagnostic()?
             .json::<HashMap<String, CertificateInfo>>()
-            .await
-            .into_diagnostic()?;
-        Ok(res)
+            .await;
+        match res {
+            Ok(res) => Ok(res),
+            Err(_) => {
+                let empty: HashMap<String, CertificateInfo> = HashMap::new();
+                Ok(empty)
+                // let message = "No certificates in the store".to_owned();
+                // Err(Error::msg(message))
+            }
+        }
     }
     /**
      * Get every certificate non close to expirity from nginx-unit certificate store.

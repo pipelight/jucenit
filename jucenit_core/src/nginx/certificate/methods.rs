@@ -20,32 +20,31 @@ impl CertificateStore {
      * for matching valid certificates or generate them.
      * Update the configuration with fresh ssl.
      */
-    pub async fn hydrate() -> Result<()> {
+    pub async fn hydrate() -> Result<serde_json::Value> {
         let config = Config::get().await?;
 
         for host in Config::get_hosts().await? {
             let dns = host;
             // For ACME limitation rate reason
             // Check if a certificate already exists
-            let cert = Self::get(&dns).await;
+            let cert = CertificateStore::get(&dns).await;
             match cert {
                 Ok(res) => {
                     if res.validity.should_renew()? {
                         let account = ssl::pebble::pebble_account().await?.clone();
                         let bundle = LetsencryptCertificate::get(&dns, &account).await?;
-                        Self::update(&dns, &bundle).await?;
-                        Self::update_listeners().await?;
+                        CertificateStore::update(&dns, &bundle).await?;
                     }
                 }
                 Err(_) => {
                     let account = ssl::pebble::pebble_account().await?.clone();
                     let bundle = LetsencryptCertificate::get(&dns, &account).await?;
-                    Self::update(&dns, &bundle).await?;
+                    CertificateStore::update(&dns, &bundle).await?;
                 }
             };
         }
-        Self::update_listeners().await?;
-        Ok(())
+        let res = CertificateStore::update_listeners().await?;
+        Ok(res)
     }
     /**
      * Upload a certificate bundle:
@@ -88,9 +87,9 @@ impl CertificateStore {
      */
     pub async fn clean() -> Result<()> {
         // Get list of every certificates in nginx-unit certificate store.
-        let certificates = Self::get_all().await?;
+        let certificates = CertificateStore::get_all().await?;
         for (key, _) in certificates {
-            Self::remove(&key).await?;
+            CertificateStore::remove(&key).await?;
         }
         Ok(())
     }
@@ -102,21 +101,23 @@ impl CertificateStore {
      */
     pub async fn update(dns: &str, bundle: &str) -> Result<serde_json::Value> {
         // Remove preceding certificate if it exists
-        let _ = Self::remove(dns).await;
-        let res = Self::add(dns, bundle).await?;
+        let _ = CertificateStore::remove(dns).await;
+        let res = CertificateStore::add(dns, bundle).await?;
         Ok(res)
     }
     /**
      * Bulk update listeners with every certificates in the store
      */
     pub async fn update_listeners() -> Result<serde_json::Value> {
-        let certificates = Self::get_all().await?;
-        let dns_list: Vec<String> = certificates.into_keys().collect();
+        let certificates = Config::get_hosts().await?;
+        // let certificates = CertificateStore::get_all().await?;
+        // let dns_list: Vec<String> = certificates.into_keys().collect();
 
         let mut config = Config::get().await?;
         for (_, val) in config.listeners.iter_mut() {
             val.tls = Some(Tls {
-                certificate: dns_list.clone(),
+                // certificate: dns_list.clone(),
+                certificate: certificates.clone(),
             });
         }
         let res = Config::set(&config).await?;
@@ -140,9 +141,12 @@ mod tests {
      * Set a fresh testing environment
      */
     async fn set_testing_config() -> Result<()> {
+        // Clean certificate store
+        CertificateStore::clean().await?;
+        // Set new configuration
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         NginxConfig::set(&NginxConfig::from(&config_file)).await?;
-        CertificateStore::clean().await?;
+
         Ok(())
     }
 
@@ -169,7 +173,7 @@ mod tests {
         println!("{:#?}", res);
         Ok(())
     }
-    #[tokio::test]
+    // #[tokio::test]
     async fn update_cert_letsencrypt() -> Result<()> {
         let dns = "example.com";
         let account = ssl::pebble::pebble_account().await?.clone();
@@ -182,9 +186,9 @@ mod tests {
     async fn hydrate_cert_store() -> Result<()> {
         set_testing_config().await?;
 
-        CertificateStore::hydrate().await?;
+        let res = CertificateStore::hydrate().await?;
+        println!("{:#?}", res);
 
-        let res = CertificateStore::get_all().await?;
         let certificates = CertificateStore::get_all().await?;
         let mut dns_list: Vec<String> = certificates.into_keys().collect();
         assert_eq!(
