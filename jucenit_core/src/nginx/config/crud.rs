@@ -133,13 +133,15 @@ impl Config {
 
         // Modify file with editor
         let editor = env::var("EDITOR").into_diagnostic()?;
+        print!("{}", path.clone());
         let child = Command::new(editor)
             .arg(path.clone())
-            .stdin(Stdio::null())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
+            // .stdin(Stdio::null())
+            // .stdout(Stdio::inherit())
+            // .stderr(Stdio::inherit())
             .spawn()
             .expect("Couldn't spawn a detached subprocess");
+
         let output = child.wait_with_output().into_diagnostic()?;
 
         // Update nginx-unit config
