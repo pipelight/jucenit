@@ -35,7 +35,7 @@ pub static LETS_ENCRYPT_URL: Lazy<Arc<Mutex<String>>> = Lazy::new(|| {
 * purposes, you should keep the account (and private key), so
 * you can renew your certificate easily.
 */
-async fn letsencrypt_account() -> Result<Arc<Account>> {
+pub async fn letsencrypt_account() -> Result<Arc<Account>> {
     // Create a new ACMEv2 directory for Let's Encrypt.
     let dir = DirectoryBuilder::new(LETS_ENCRYPT_URL.lock().unwrap().clone())
         .build()
@@ -115,12 +115,9 @@ async fn del_challenge_key(dns: &str, challenge: &Challenge) -> Result<()> {
 pub struct Letsencrypt;
 
 impl Letsencrypt {
-    pub async fn get(dns: &str, account: &Account) -> Result<String> {
-        let account = pebble_account().await?;
-        // let account = letsencrypt_account().await?;
-
+    pub async fn get(dns: &str, account: &Arc<Account>) -> Result<String> {
         // Create a new order for a specific domain name.
-        let mut builder = OrderBuilder::new(account);
+        let mut builder = OrderBuilder::new(account.to_owned());
         builder.add_dns_identifier(dns.to_owned());
         let order = builder.build().await.into_diagnostic()?;
 
@@ -132,14 +129,14 @@ impl Letsencrypt {
                 set_challenge_key(dns, &challenge).await?;
                 let challenge = challenge.validate().await.into_diagnostic()?;
                 let challenge = challenge
-                    .wait_done(Duration::from_secs(5), 3)
+                    .wait_done(Duration::from_secs(30), 10)
                     .await
                     .into_diagnostic()?;
                 assert_eq!(challenge.status, ChallengeStatus::Valid);
                 del_challenge_key(dns, &challenge).await?;
 
                 let authorization = auth
-                    .wait_done(Duration::from_secs(5), 3)
+                    .wait_done(Duration::from_secs(30), 10)
                     .await
                     .into_diagnostic()?;
                 assert_eq!(authorization.status, AuthorizationStatus::Valid);
@@ -212,24 +209,24 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn get_pebble_cert() -> Result<()> {
+    // #[tokio::test]
+    async fn get_letsencrypt_cert() -> Result<()> {
         let account = letsencrypt_account().await?.clone();
-        let res = Letsencrypt::get("crocuda.com", &account).await?;
+        let res = Letsencrypt::get("example.com", &account).await?;
         println!("{:#?}", res);
         Ok(())
     }
-    // #[tokio::test]
-    async fn get_letsencrypt_cert() -> Result<()> {
+    #[tokio::test]
+    async fn get_pebble_cert() -> Result<()> {
         let account = pebble_account().await?.clone();
-        let res = Letsencrypt::get("crocuda.com", &account).await?;
+        let res = Letsencrypt::get("example.com", &account).await?;
         println!("{:#?}", res);
         Ok(())
     }
 
-    // #[tokio::test]
+    #[tokio::test]
     async fn set_challenge() -> Result<()> {
-        // set_challenge_key("crocuda.com", challenge).await?;
+        // set_challenge_key("example.com", challenge).await?;
         // println!("{:#?}", res);
         Ok(())
     }

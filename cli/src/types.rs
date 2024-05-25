@@ -46,21 +46,19 @@ impl Cli {
     pub async fn run() -> Result<()> {
         let cli = Cli::parse();
         match cli.commands {
-            Commands::Adapt(args) => {
+            Commands::Push(args) => {
                 if let Some(file) = args.file {
                     NginxConfig::update(&NginxConfig::from(&ConfigFile::load(&file)?)).await?;
                 } else {
                     NginxConfig::update(&NginxConfig::from(&ConfigFile::get()?)).await?;
                 }
-                // run stuff
             }
-            Commands::Push(args) => {
+            Commands::Adapt(args) => {
                 if let Some(file) = args.file {
                     ConfigFile::load(&file)?.adapt()?;
                 } else {
                     ConfigFile::get()?.adapt()?;
                 }
-                // run stuff
             }
             Commands::Edit => {
                 NginxConfig::get().await?.edit().await?;

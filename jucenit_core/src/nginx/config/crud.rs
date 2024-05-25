@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::default::Default;
 use std::{collections::HashMap, env::temp_dir};
 use tokio::task::spawn_local;
 // Global vars
@@ -122,25 +121,26 @@ impl Config {
         let uuid = Uuid::new_v4();
         let tmp_dir = "/tmp/jucenit";
         fs::create_dir_all(tmp_dir).into_diagnostic()?;
-        let path = format!("/tmp/jucenit/jucenit.config.tmp.{}.toml", uuid);
+        let path = &format!("/tmp/jucenit/jucenit.config.tmp.{}.toml", uuid);
+        // let path = "/tmp/jucenit/jucenit.config.tmp.toml";
 
         // Retrieve config
         let toml = toml::to_string_pretty(&ConfigFile::from(self)).into_diagnostic()?;
         // Create and write to file
-        let mut file = fs::File::create(path.clone()).into_diagnostic()?;
+        let mut file = fs::File::create(path).into_diagnostic()?;
         let bytes = toml.as_bytes();
         file.write_all(bytes).into_diagnostic()?;
 
         // Modify file with editor
         let editor = env::var("EDITOR").into_diagnostic()?;
-        print!("{}", path.clone());
+
         let child = Command::new(editor)
-            .arg(path.clone())
-            // .stdin(Stdio::null())
-            // .stdout(Stdio::inherit())
-            // .stderr(Stdio::inherit())
+            .arg(path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()
-            .expect("Couldn't spawn a detached subprocess");
+            .into_diagnostic()?;
 
         let output = child.wait_with_output().into_diagnostic()?;
 

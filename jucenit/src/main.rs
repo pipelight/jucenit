@@ -1,24 +1,15 @@
 // Error Handling
 use log::trace;
-use miette::{Error, IntoDiagnostic, Result};
+use miette::Result;
 // Clap
 use cli::Cli;
-use tokio::{
-    task::{spawn_local, LocalSet},
-    time::*,
-};
 
 /**
 The jucenit binary entrypoint.
 This main function is the first function to be executed when launching pipelight.
 */
 #[tokio::main]
-async fn main() {
-    let s = LocalSet::new();
-    let _ = s.run_until(inner_main()).await.unwrap();
-}
-
-async fn inner_main() -> Result<()> {
+async fn main() -> Result<()> {
     trace!("Launch process.");
     make_handler()?;
     Cli::run().await?;

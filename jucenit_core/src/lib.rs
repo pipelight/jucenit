@@ -2,6 +2,8 @@
 
 mod cast;
 mod error;
+pub mod juce;
+pub mod mapping;
 pub mod nginx;
 mod ssl;
 pub use cast::{Action, Config as ConfigFile, Match};

@@ -30,7 +30,7 @@ pub struct Action {
     pub fallback: Option<Box<Action>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Match {
     #[serde(skip_serializing_if = "Option::is_none")]
