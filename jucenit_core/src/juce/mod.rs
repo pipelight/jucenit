@@ -28,6 +28,7 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
+    pub id: Option<String>,
     pub action: Option<Action>,
     pub listeners: Vec<String>,
     pub kind: UnitKind,

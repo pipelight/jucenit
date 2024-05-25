@@ -100,6 +100,8 @@ impl Config {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub action: Option<Action>,
     #[serde(rename = "match")]
     pub match_: Match,

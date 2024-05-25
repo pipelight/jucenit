@@ -13,6 +13,7 @@ impl From<&ConfigFile> for JuceConfig {
             jucenit_config.units.insert(
                 e.match_,
                 JuceUnit {
+                    id: e.id,
                     action: e.action,
                     listeners: e.listeners,
                     kind: UnitKind::Managed,
