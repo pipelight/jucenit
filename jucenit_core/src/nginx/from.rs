@@ -1,143 +1,63 @@
 use std::collections::HashMap;
 
-use super::{Config as NginxConfig, ListenerOpts, Route};
+use super::{Config as NginxConfig, ListenerOpts, Route as NginxRoute};
 use crate::cast::{Config as ConfigFile, Unit as ConfigFileUnit};
+use crate::juce::{Config as JuceConfig, Unit as JuceUnit};
 
-impl From<&NginxConfig> for ConfigFile {
-    fn from(unit_config: &NginxConfig) -> Self {
-        let mut config_file = ConfigFile::default();
+impl From<&JuceConfig> for NginxConfig {
+    fn from(e: &JuceConfig) -> NginxConfig {
+        // Create jucenit managed nginx-unit routes(steps)
+        let mut routes: HashMap<String, Vec<NginxRoute>> = HashMap::new();
 
-        for (key, value) in unit_config.listeners.iter() {
-            let route_name = format!("jucenit_[{}]", key);
-            if let Some(route_vec) = unit_config.routes.get(&route_name) {
-                for route in route_vec {
-                    let unit = ConfigFileUnit {
-                        listeners: vec![key.to_owned()],
-                        action: route.action.clone(),
-                        match_: route.match_.clone(),
-                    };
-                    config_file.unit.push(unit)
-                }
-            }
-        }
-
-        // let mut listeners = HashMap::new();
-        // for listener in unit_config.listeners {}
-
-        return config_file;
-    }
-}
-
-impl From<&ConfigFileUnit> for NginxConfig {
-    fn from(e: &ConfigFileUnit) -> Self {
-        let mut unit_config = NginxConfig::default();
-
-        let mut route_vec: Vec<Route> = vec![];
-
-        let mut listeners = HashMap::new();
-        let mut routes: HashMap<String, Vec<Route>> = HashMap::new();
-
-        for listener in e.listeners.clone() {
-            // add listeners to unit
-            let route_name = format!("jucenit_[{}]", listener);
-            listeners.insert(
-                listener,
-                ListenerOpts {
-                    pass: "routes/".to_owned() + &route_name,
-                    tls: None,
-                },
-            );
-            // add named route
-            let route = Route {
-                action: e.action.clone(),
-                match_: e.match_.clone(),
-            };
-            route_vec.push(route);
-
-            // insert or update unit route
-            if unit_config.routes.get(&route_name).is_some() {
-                unit_config
-                    .routes
-                    .get_mut(&route_name)
-                    .unwrap()
-                    .extend(route_vec.clone());
-            } else {
-                unit_config.routes.insert(route_name, route_vec.clone());
-            }
-        }
-        return unit_config;
-    }
-}
-
-impl From<&ConfigFile> for NginxConfig {
-    fn from(config_file: &ConfigFile) -> Self {
-        let mut unit_config = NginxConfig::default();
-
-        let mut listeners = HashMap::new();
-        let mut routes: HashMap<String, Vec<Route>> = HashMap::new();
-
-        for e in config_file.unit.clone() {
-            for listener in e.listeners {
-                let mut route_vec: Vec<Route> = vec![];
-                // add listeners to unit
+        // Create jucenit managed nginx-unit listeners
+        let mut listeners: HashMap<String, ListenerOpts> = HashMap::new();
+        e.units.values().map(|unit| {
+            unit.listeners.into_iter().map(|listener| {
                 let route_name = format!("jucenit_[{}]", listener);
+                // Provision routes with keys
+                routes.insert(route_name, vec![]);
                 listeners.insert(
                     listener,
                     ListenerOpts {
                         pass: "routes/".to_owned() + &route_name,
                         tls: None,
                     },
-                );
-                // add named route
-                let route = Route {
-                    action: e.action.clone(),
-                    match_: e.match_.clone(),
-                };
-                route_vec.push(route);
+                )
+            })
+        });
 
-                // insert or update unit route
-                if unit_config.routes.get(&route_name).is_some() {
-                    unit_config
-                        .routes
-                        .get_mut(&route_name)
-                        .unwrap()
-                        .extend(route_vec.clone());
-                } else {
-                    unit_config.routes.insert(route_name, route_vec.clone());
-                }
+        // Provision routes with values
+        e.units.iter().map(|(match_, unit)| {
+            for listener in unit.listeners {
+                let route_name = format!("jucenit_[{}]", listener);
+                routes.get_mut(&route_name).unwrap().push(NginxRoute {
+                    match_: match_.to_owned(),
+                    action: unit.action,
+                });
             }
-        }
+        });
 
-        unit_config.listeners = listeners;
-        return unit_config;
+        NginxConfig { listeners, routes }
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::ConfigFile;
-    use super::NginxConfig;
+    use super::{ConfigFile, JuceConfig, NginxConfig};
 
     use miette::Result;
 
     #[test]
     fn get_config() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        let res = NginxConfig::from(&config_file);
+        let res = NginxConfig::from(&JuceConfig::from(&config_file));
         println!("{:#?}", res);
         Ok(())
     }
     #[test]
     fn adapt_file() -> Result<()> {
         ConfigFile::from_toml("../examples/jucenit.toml")?.adapt()?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn get_unit_config_to_toml() -> Result<()> {
-        let res = ConfigFile::from(&(NginxConfig::get().await?));
-        println!("{:#?}", res);
         Ok(())
     }
 }

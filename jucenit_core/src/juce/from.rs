@@ -1,54 +1,28 @@
-use indexmap::IndexMap;
-use std::collections::HashMap;
-
-use super::Config as JuceConfig;
+use super::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
 use crate::cast::{Config as ConfigFile, Unit as ConfigFileUnit};
 use crate::nginx::{Config as NginxConfig, ListenerOpts, Route};
+use indexmap::IndexMap;
 
 impl From<&ConfigFile> for JuceConfig {
-    fn from(config_file: &ConfigFile) -> Self {
+    fn from(config_file: &ConfigFile) -> JuceConfig {
         let mut jucenit_config = JuceConfig::default();
 
-        let mut listeners = HashMap::new();
-
-        let mut routes: HashMap<String, Vec<Route>> = HashMap::new();
-
+        // Iterate over config file [[unit]] steps
         for e in config_file.unit.clone() {
-            for listener in e.listeners {
-                let mut route_vec: Vec<Route> = vec![];
-                // add listeners to unit
-                let route_name = format!("jucenit_[{}]", listener);
-                listeners.insert(
-                    listener,
-                    ListenerOpts {
-                        pass: "routes/".to_owned() + &route_name,
-                        tls: None,
-                    },
-                );
-                // add named route
-                let route = Route {
-                    action: e.action.clone(),
-                    match_: e.match_.clone(),
-                };
-                route_vec.push(route);
-
-                // insert or update unit route
-                if unit_config.routes.get(&route_name).is_some() {
-                    unit_config
-                        .routes
-                        .get_mut(&route_name)
-                        .unwrap()
-                        .extend(route_vec.clone());
-                } else {
-                    unit_config.routes.insert(route_name, route_vec.clone());
-                }
-            }
+            // Fill the IndexMap
+            jucenit_config.units.insert(
+                e.match_,
+                JuceUnit {
+                    action: e.action,
+                    listeners: e.listeners,
+                    kind: UnitKind::Managed,
+                },
+            );
         }
-
-        unit_config.listeners = listeners;
-        return unit_config;
+        jucenit_config
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::JuceConfig;

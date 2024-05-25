@@ -21,7 +21,7 @@ use miette::{Error, IntoDiagnostic, Result};
 */
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
-struct Config {
+pub struct Config {
     pub units: IndexMap<Match, Unit>,
 }
 
