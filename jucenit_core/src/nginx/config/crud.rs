@@ -48,7 +48,7 @@ impl Config {
     /**
      * Replace the in place configuration.
      */
-    pub async fn set(config: &Config) -> Result<serde_json::Value> {
+    pub async fn set(config: &Config) -> Result<()> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
@@ -60,7 +60,33 @@ impl Config {
             .json::<serde_json::Value>()
             .await
             .into_diagnostic()?;
-        Ok(res)
+
+        // Responce conversion from Json to Rust type.
+        match res {
+            serde_json::Value::Object(res) => {
+                if let Some(success) = res.get("success") {
+                    println!("nginx-server: {}", success);
+                    return Ok(());
+                } else if let Some(error) = res.get("error") {
+                    return Err(Error::msg(error.to_string()));
+                } else {
+                    let message = format!(
+                        "Unexpected error returned from nginx-server:\n 
+                            {:#?}",
+                        res
+                    );
+                    Err(Error::msg(message))
+                }
+            }
+            _ => {
+                let message = format!(
+                    "Unexpected value returned from nginx-server:\n
+                    {}",
+                    res
+                );
+                Err(Error::msg(message))
+            }
+        }
     }
 
     /**
@@ -75,24 +101,6 @@ impl Config {
             .await
             .into_diagnostic()?;
         Ok(config)
-    }
-
-    /**
-     * Replace the nginx-unit configuration by a default empty one.
-     */
-    async fn clean() -> Result<serde_json::Value> {
-        let settings = SETTINGS.lock().unwrap().clone();
-        let client = reqwest::Client::new();
-        let res = client
-            .put(settings.get_url() + "/config")
-            .body(serde_json::to_string(&Config::default()).into_diagnostic()?)
-            .send()
-            .await
-            .into_diagnostic()?
-            .json::<serde_json::Value>()
-            .await
-            .into_diagnostic()?;
-        Ok(res)
     }
 }
 
@@ -127,13 +135,6 @@ mod tests {
     use miette::Result;
 
     #[tokio::test]
-    async fn clean_config() -> Result<()> {
-        let res = NginxConfig::clean().await?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn get_config() -> Result<()> {
         let res = NginxConfig::get().await?;
         println!("{:#?}", res);
@@ -141,14 +142,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn set_config() -> Result<()> {
+    async fn set_default_config() -> Result<()> {
         let res = NginxConfig::set(&NginxConfig::default()).await?;
         println!("{:#?}", res);
         Ok(())
     }
 
     #[tokio::test]
-    async fn set_from_file() -> Result<()> {
+    async fn set_config_from_file() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let res = NginxConfig::set(&NginxConfig::from(&JuceConfig::from(&config_file))).await?;
         println!("{:#?}", res);

@@ -12,6 +12,7 @@ use crate::{Action, Match};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 // Error Handling
+use crate::nginx::Config as NginxConfig;
 use miette::{Error, IntoDiagnostic, Result};
 
 /**
@@ -23,6 +24,15 @@ use miette::{Error, IntoDiagnostic, Result};
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub units: IndexMap<Match, Unit>,
+}
+/**
+* Force push the configuration to nginx-unit.
+*/
+impl Config {
+    pub async fn push(&self) -> Result<()> {
+        let res = NginxConfig::set(&NginxConfig::from(self)).await?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

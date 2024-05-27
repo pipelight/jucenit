@@ -18,7 +18,8 @@ use std::io::Write;
 use uuid::Uuid;
 // Crate structs
 use super::pebble::{pebble_account, pebble_http_client, PEBBLE_CERT_URL};
-use crate::cast::{Action, Config as ConfigFile, Match, Unit as ConfigFileUnit};
+use crate::cast::{Action, Match};
+use crate::juce::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
 use crate::nginx::Config as NginxConfig;
 use openssl::x509::X509;
 
@@ -57,28 +58,30 @@ pub async fn letsencrypt_account() -> Result<Arc<Account>> {
 * A file at `https://example.com/.well-known/${challenge.token}`
 * with the content of `challenge.key_authorization()??`.
 */
-fn make_challenge_config(dns: &str, challenge: &Challenge) -> Result<ConfigFileUnit> {
+fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Match, JuceUnit)> {
     // Update nginx-unit config
-    let unit = ConfigFileUnit {
+    let match_ = Match {
+        uri: Some(format!("/.well-known/{}", challenge.token.clone().unwrap())),
+        host: Some(dns.to_owned()),
+        ..Match::default()
+    };
+    let unit = JuceUnit {
+        id: Some(format!("challenge_{}", dns)),
+        kind: UnitKind::SslChallenge,
         listeners: vec!["*:80".to_owned(), "*:443".to_owned()],
-        match_: Match {
-            uri: Some(format!("/.well-known/{}", challenge.token.clone().unwrap())),
-            host: Some(dns.to_owned()),
-            ..Match::default()
-        },
         action: Some(Action {
             share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
             ..Action::default()
         }),
     };
-    Ok(unit)
+    Ok((match_, unit))
     // println!("{:?}", res);
 }
 
 /**
 * Create tmp challenge files and nginx-unit routes
 */
-async fn set_challenge_key(dns: &str, challenge: &Challenge) -> Result<()> {
+async fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     // Write challenge key to temporary file
     let data = challenge.key_authorization().into_diagnostic()?.unwrap();
 
@@ -90,24 +93,16 @@ async fn set_challenge_key(dns: &str, challenge: &Challenge) -> Result<()> {
     let bytes = data.as_bytes();
     file.write_all(bytes).into_diagnostic()?;
 
-    // Update nginx conf
-    let unit = make_challenge_config(dns, challenge)?;
-    let config = NginxConfig::from(&unit);
-    NginxConfig::update(&config).await?;
     Ok(())
 }
+
 /**
 * Delete tmp challenge files and nginx-unit routes
 */
-async fn del_challenge_key(dns: &str, challenge: &Challenge) -> Result<()> {
+async fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     let tmp_dir = "/tmp/jucenit";
     let path = format!("{}/challenge_{}.txt", tmp_dir, dns);
     fs::remove_file(path).into_diagnostic()?;
-
-    // Update nginx conf
-    let unit = make_challenge_config(dns, challenge)?;
-    let config = NginxConfig::from(&unit);
-    NginxConfig::delete(&config).await?;
     Ok(())
 }
 
@@ -115,7 +110,7 @@ async fn del_challenge_key(dns: &str, challenge: &Challenge) -> Result<()> {
 pub struct Letsencrypt;
 
 impl Letsencrypt {
-    pub async fn get(dns: &str, account: &Arc<Account>) -> Result<String> {
+    pub async fn get_cert_bundle(dns: &str, account: &Arc<Account>) -> Result<String> {
         // Create a new order for a specific domain name.
         let mut builder = OrderBuilder::new(account.to_owned());
         builder.add_dns_identifier(dns.to_owned());
@@ -126,14 +121,14 @@ impl Letsencrypt {
         for auth in authorizations {
             // Get an http-01 challenge for this authorization
             if let Some(challenge) = auth.get_challenge("http-01") {
-                set_challenge_key(dns, &challenge).await?;
+                set_challenge_key_file(dns, &challenge).await?;
+
                 let challenge = challenge.validate().await.into_diagnostic()?;
                 let challenge = challenge
                     .wait_done(Duration::from_secs(30), 10)
                     .await
                     .into_diagnostic()?;
                 assert_eq!(challenge.status, ChallengeStatus::Valid);
-                del_challenge_key(dns, &challenge).await?;
 
                 let authorization = auth
                     .wait_done(Duration::from_secs(30), 10)
@@ -212,14 +207,14 @@ mod tests {
     // #[tokio::test]
     async fn get_letsencrypt_cert() -> Result<()> {
         let account = letsencrypt_account().await?.clone();
-        let res = Letsencrypt::get("example.com", &account).await?;
+        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
         println!("{:#?}", res);
         Ok(())
     }
     #[tokio::test]
     async fn get_pebble_cert() -> Result<()> {
         let account = pebble_account().await?.clone();
-        let res = Letsencrypt::get("example.com", &account).await?;
+        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
         println!("{:#?}", res);
         Ok(())
     }

@@ -22,33 +22,27 @@ pub struct Config {
 }
 
 impl Config {
+    /**
+     * Search the filesystem for a config file.
+     */
     pub fn get() -> Result<Config> {
         let mut portal = Portal::new()?;
         portal.seed("jucenit");
-
         let res = portal.search()?;
         let config = Config::load(&portal.target.file_path.unwrap())?;
         Ok(config)
     }
-    pub fn adapt(&self) -> Result<String> {
-        let config = NginxConfig::from(self);
-        let res = serde_json::to_string_pretty(&config).into_diagnostic()?;
-        println!("{}", res);
-        Ok(res)
-    }
 
     /**
-    Choose the appropriated method to load the config file
-    according to the file extension(.ts, .toml, .yml...).
-
-    Arguments:
-      - file_path is the config file path
-      - args are only to be used with scripting language (typescript) to pass args to the underlying script.
-
-    Languages coming next after v1.0.0:
-      - Rust, Hcl, Kcl, Python...
-    */
+     * Choose the appropriated method to load the config file
+     * according to the file extension(.toml or .yml).
+     *
+     *  Arguments:
+     *  - file_path is the config file path
+     *  - args are only to be used with scripting language (typescript) to pass args to the underlying script.
+     */
     pub fn load(file_path: &str) -> Result<Config> {
+        // TODO: add Hcl and Kcl.
         let extension = &Path::new(file_path)
             .extension()
             .unwrap()
@@ -57,7 +51,7 @@ impl Config {
             .to_owned();
 
         let file_type = FileType::from(extension);
-        let mut config = match file_type {
+        let config = match file_type {
             FileType::Toml | FileType::Tml => Config::from_toml(file_path)?,
             FileType::Yaml | FileType::Yml => Config::from_yaml(file_path)?,
             _ => {
@@ -68,7 +62,7 @@ impl Config {
         Ok(config)
     }
     /**
-    Returns a Config struct from a provided toml file path.
+    Returns a jucenit configuration from a provided toml file path.
     */
     pub fn from_toml(file_path: &str) -> Result<Config> {
         let tml = fs::read_to_string(file_path).into_diagnostic()?;
@@ -82,7 +76,7 @@ impl Config {
         }
     }
     /**
-     * Returns a Config struct from a provided yaml file path.
+     * Returns a jucenit configuration from a provided yaml file path.
      */
     pub fn from_yaml(file_path: &str) -> Result<Config> {
         let yml = fs::read_to_string(file_path).into_diagnostic()?;
@@ -114,29 +108,14 @@ mod tests {
     use miette::Result;
 
     #[test]
-    fn read_config_file() -> Result<()> {
-        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-    #[test]
-    fn adapt_config_file() -> Result<()> {
-        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        res.adapt()?;
-        Ok(())
-    }
-    #[test]
-    /**
-     * Test loading a file from a given path
-     */
-    fn read_toml() -> Result<()> {
+    fn get_from_toml_file() -> Result<()> {
         let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
         println!("{:#?}", res);
         Ok(())
     }
 
     #[test]
-    fn seek_file() -> Result<()> {
+    fn seek_a_config_file() -> Result<()> {
         let res = ConfigFile::get()?;
         println!("{:#?}", res);
         Ok(())

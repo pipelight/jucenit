@@ -11,31 +11,32 @@ impl From<&JuceConfig> for NginxConfig {
 
         // Create jucenit managed nginx-unit listeners
         let mut listeners: HashMap<String, ListenerOpts> = HashMap::new();
-        e.units.values().map(|unit| {
-            unit.listeners.into_iter().map(|listener| {
+
+        for unit in e.units.values() {
+            for listener in &unit.listeners {
                 let route_name = format!("jucenit_[{}]", listener);
                 // Provision routes with keys
-                routes.insert(route_name, vec![]);
+                routes.insert(route_name.clone(), vec![]);
                 listeners.insert(
-                    listener,
+                    listener.to_owned(),
                     ListenerOpts {
-                        pass: "routes/".to_owned() + &route_name,
+                        pass: format!("routes/{}", &route_name),
                         tls: None,
                     },
-                )
-            })
-        });
+                );
+            }
+        }
 
         // Provision routes with values
-        e.units.iter().map(|(match_, unit)| {
-            for listener in unit.listeners {
+        for (match_, unit) in &e.units {
+            for listener in &unit.listeners {
                 let route_name = format!("jucenit_[{}]", listener);
                 routes.get_mut(&route_name).unwrap().push(NginxRoute {
                     match_: match_.to_owned(),
-                    action: unit.action,
+                    action: unit.action.clone(),
                 });
             }
-        });
+        }
 
         NginxConfig { listeners, routes }
     }
@@ -43,21 +44,22 @@ impl From<&JuceConfig> for NginxConfig {
 
 #[cfg(test)]
 mod tests {
-
     use super::{ConfigFile, JuceConfig, NginxConfig};
-
-    use miette::Result;
+    use miette::{IntoDiagnostic, Result};
 
     #[test]
-    fn get_config() -> Result<()> {
+    fn from_jucenit_to_nginx() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let res = NginxConfig::from(&JuceConfig::from(&config_file));
         println!("{:#?}", res);
         Ok(())
     }
     #[test]
-    fn adapt_file() -> Result<()> {
-        ConfigFile::from_toml("../examples/jucenit.toml")?.adapt()?;
+    fn from_jucenit_to_nginx_json() -> Result<()> {
+        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let res = NginxConfig::from(&JuceConfig::from(&config_file));
+        let res = serde_json::to_string_pretty(&res).into_diagnostic()?;
+        println!("{}", res);
         Ok(())
     }
 }

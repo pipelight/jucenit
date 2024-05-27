@@ -61,7 +61,7 @@ impl Cli {
                 }
             }
             Commands::Edit => {
-                NginxConfig::get().await?.edit().await?;
+                // NginxConfig::get().await?.edit().await?;
                 // run stuff
             }
             Commands::Clean(args) => {
