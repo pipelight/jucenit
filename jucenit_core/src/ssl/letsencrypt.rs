@@ -5,7 +5,7 @@ use acme2::{
 };
 use std::time::Duration;
 // Error Handling
-use miette::{Error, IntoDiagnostic, Result};
+use miette::{Context, Error, IntoDiagnostic, Result};
 // use acme2::Error;
 // Global vars
 use crate::nginx::SETTINGS;
@@ -20,7 +20,6 @@ use uuid::Uuid;
 use super::pebble::{pebble_account, pebble_http_client, PEBBLE_CERT_URL};
 use crate::cast::{Action, Match};
 use crate::juce::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
-use crate::nginx::Config as NginxConfig;
 use openssl::x509::X509;
 
 // Production
@@ -61,35 +60,41 @@ pub async fn letsencrypt_account() -> Result<Arc<Account>> {
 fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Match, JuceUnit)> {
     // Update nginx-unit config
     let match_ = Match {
-        uri: Some(format!("/.well-known/{}", challenge.token.clone().unwrap())),
+        uri: Some(format!(
+            "/.well-known/acme-challenge/{}",
+            challenge.token.clone().unwrap()
+        )),
         host: Some(dns.to_owned()),
         ..Match::default()
     };
     let unit = JuceUnit {
         id: Some(format!("challenge_{}", dns)),
         kind: UnitKind::SslChallenge,
-        listeners: vec!["*:80".to_owned(), "*:443".to_owned()],
+        listeners: vec!["*:5002".to_owned()],
         action: Some(Action {
             share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
             ..Action::default()
         }),
     };
     Ok((match_, unit))
-    // println!("{:?}", res);
 }
 
 /**
 * Create tmp challenge files and nginx-unit routes
 */
-async fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
+fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     // Write challenge key to temporary file
     let data = challenge.key_authorization().into_diagnostic()?.unwrap();
 
     // Create and write to file
     let tmp_dir = "/tmp/jucenit";
     fs::create_dir_all(tmp_dir).into_diagnostic()?;
-    let path = format!("/tmp/jucenit/challenge_{}.txt", dns);
-    let mut file = fs::File::create(path.clone()).into_diagnostic()?;
+    let file_path = format!("/tmp/jucenit/challenge_{}.txt", dns);
+
+    let message = format!("Couldn't create file at: {:?}", file_path);
+    let mut file = fs::File::create(file_path.clone())
+        .into_diagnostic()
+        .wrap_err(message)?;
     let bytes = data.as_bytes();
     file.write_all(bytes).into_diagnostic()?;
 
@@ -99,7 +104,7 @@ async fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> 
 /**
 * Delete tmp challenge files and nginx-unit routes
 */
-async fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
+fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     let tmp_dir = "/tmp/jucenit";
     let path = format!("{}/challenge_{}.txt", tmp_dir, dns);
     fs::remove_file(path).into_diagnostic()?;
@@ -121,20 +126,30 @@ impl Letsencrypt {
         for auth in authorizations {
             // Get an http-01 challenge for this authorization
             if let Some(challenge) = auth.get_challenge("http-01") {
-                set_challenge_key_file(dns, &challenge).await?;
+                set_challenge_key_file(dns, &challenge)?;
+                let (match_, unit) = make_jucenit_challenge_config(dns, &challenge)?;
+                JuceConfig::add_unit((match_.clone(), unit)).await?;
 
                 let challenge = challenge.validate().await.into_diagnostic()?;
                 let challenge = challenge
-                    .wait_done(Duration::from_secs(30), 10)
+                    .wait_done(Duration::from_secs(5), 3)
                     .await
                     .into_diagnostic()?;
-                assert_eq!(challenge.status, ChallengeStatus::Valid);
+                // println!("{:?}", challenge.status);
+                if challenge.status != ChallengeStatus::Valid {
+                    del_challenge_key_file(dns, &challenge)?;
+                    JuceConfig::del_unit(match_.clone()).await?;
+                }
 
                 let authorization = auth
-                    .wait_done(Duration::from_secs(30), 10)
+                    .wait_done(Duration::from_secs(5), 3)
                     .await
                     .into_diagnostic()?;
-                assert_eq!(authorization.status, AuthorizationStatus::Valid);
+                // println!("{:?}", authorization.status);
+                if authorization.status != AuthorizationStatus::Valid {
+                    del_challenge_key_file(dns, &challenge)?;
+                    JuceConfig::del_unit(match_).await?;
+                }
             }
         }
 
@@ -200,7 +215,7 @@ mod tests {
     // #[tokio::test]
     async fn set_remote_creds() -> Result<()> {
         let res = letsencrypt_account().await?;
-        // println!("{:#?}", res);
+        println!("{:#?}", res);
         Ok(())
     }
 
@@ -208,20 +223,14 @@ mod tests {
     async fn get_letsencrypt_cert() -> Result<()> {
         let account = letsencrypt_account().await?.clone();
         let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-    #[tokio::test]
-    async fn get_pebble_cert() -> Result<()> {
-        let account = pebble_account().await?.clone();
-        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
-        println!("{:#?}", res);
+        // println!("{:#?}", res);
         Ok(())
     }
 
     #[tokio::test]
-    async fn set_challenge() -> Result<()> {
-        // set_challenge_key("example.com", challenge).await?;
+    async fn get_pebble_cert() -> Result<()> {
+        let account = pebble_account().await?.clone();
+        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
         // println!("{:#?}", res);
         Ok(())
     }

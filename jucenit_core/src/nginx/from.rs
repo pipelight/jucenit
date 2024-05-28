@@ -38,7 +38,11 @@ impl From<&JuceConfig> for NginxConfig {
             }
         }
 
-        NginxConfig { listeners, routes }
+        NginxConfig {
+            listeners,
+            routes,
+            ..NginxConfig::default()
+        }
     }
 }
 
