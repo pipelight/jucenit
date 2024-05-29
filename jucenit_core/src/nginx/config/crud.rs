@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 // exec
+use crate::mapping::{ListenerOpts, Route, Tls};
 use crate::nginx::certificate::CertificateStore;
 use crate::ssl::Fake as FakeCertificate;
 use crate::ssl::Letsencrypt as LetsencryptCertificate;
@@ -115,27 +116,6 @@ impl Config {
             .into_diagnostic()?;
         Ok(config)
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct ListenerOpts {
-    pub pass: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tls: Option<Tls>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-pub struct Tls {
-    pub certificate: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Route {
-    pub action: Option<Action>,
-    #[serde(rename = "match")]
-    pub match_: Match,
 }
 
 #[cfg(test)]

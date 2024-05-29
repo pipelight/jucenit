@@ -1,6 +1,7 @@
 use super::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
 use crate::cast::{Config as ConfigFile, Unit as ConfigFileUnit};
-use crate::nginx::{Config as NginxConfig, ListenerOpts, Route};
+use crate::mapping::{ListenerOpts, Route};
+use crate::nginx::Config as NginxConfig;
 use indexmap::IndexMap;
 
 impl From<&ConfigFile> for JuceConfig {

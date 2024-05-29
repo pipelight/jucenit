@@ -6,11 +6,13 @@ use crate::ssl::Letsencrypt as LetsencryptCertificate;
 use std::collections::HashMap;
 
 // Globals
-use crate::juce::Config;
+use crate::juce::Config as JuceConfig;
+use crate::mapping::Tls;
+use crate::nginx::Config as NginxConfig;
 use crate::nginx::SETTINGS;
 
 // Struct
-use super::crud::CertificateInfo;
+use super::CertificateInfo;
 
 #[derive(Debug, Clone, Default)]
 pub struct CertificateStore;
@@ -20,33 +22,33 @@ impl CertificateStore {
      * for matching valid certificates or generate them.
      * Update the configuration with fresh ssl.
      */
-    // pub async fn hydrate() -> Result<serde_json::Value> {
-    //     let config = Config::get().await?;
-    //
-    //     for host in Config::get_hosts().await? {
-    //         let dns = host;
-    //         // For ACME limitation rate reason
-    //         // Check if a certificate already exists
-    //         let cert = CertificateStore::get(&dns).await;
-    //         match cert {
-    //             Ok(res) => {
-    //                 if res.validity.should_renew()? {
-    //                     // let account = ssl::pebble_account().await?.clone();
-    //                     let account = ssl::letsencrypt_account().await?.clone();
-    //                     let bundle = LetsencryptCertificate::get(&dns, &account).await?;
-    //                     CertificateStore::update(&dns, &bundle).await?;
-    //                 }
-    //             }
-    //             Err(_) => {
-    //                 let account = ssl::letsencrypt_account().await?.clone();
-    //                 let bundle = LetsencryptCertificate::get(&dns, &account).await?;
-    //                 CertificateStore::update(&dns, &bundle).await?;
-    //             }
-    //         };
-    //     }
-    //     let res = CertificateStore::update_listeners().await?;
-    //     Ok(res)
-    // }
+    pub async fn hydrate() -> Result<()> {
+        for host in JuceConfig::get_hosts().await? {
+            let dns = host;
+            // For ACME limitation rate reason
+            // Check if a certificate already exists
+            let cert = CertificateStore::get(&dns).await;
+            match cert {
+                Ok(res) => {
+                    if res.validity.should_renew()? {
+                        // let account = ssl::pebble_account().await?.clone();
+                        let account = ssl::letsencrypt_account().await?.clone();
+                        let bundle =
+                            LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+                        CertificateStore::update(&dns, &bundle).await?;
+                    }
+                }
+                Err(_) => {
+                    let account = ssl::letsencrypt_account().await?.clone();
+                    let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+                    CertificateStore::update(&dns, &bundle).await?;
+                }
+            };
+        }
+        // JuceConfig::
+        let res = CertificateStore::update_listeners().await?;
+        Ok(())
+    }
     /**
      * Upload a certificate bundle:
      *  - a .pem file
@@ -106,24 +108,24 @@ impl CertificateStore {
         let res = CertificateStore::add(dns, bundle).await?;
         Ok(res)
     }
-    // /**
-    //  * Bulk update listeners with every certificates in the store
-    //  */
-    // pub async fn update_listeners() -> Result<serde_json::Value> {
-    //     let certificates = Config::get_hosts().await?;
-    //     // let certificates = CertificateStore::get_all().await?;
-    //     // let dns_list: Vec<String> = certificates.into_keys().collect();
-    //
-    //     let mut config = Config::get().await?;
-    //     for (_, val) in config.listeners.iter_mut() {
-    //         val.tls = Some(Tls {
-    //             // certificate: dns_list.clone(),
-    //             certificate: certificates.clone(),
-    //         });
-    //     }
-    //     let res = Config::set(&config).await?;
-    //     Ok(res)
-    // }
+    /**
+     * Bulk update listeners with every certificates in the store
+     */
+    pub async fn update_listeners() -> Result<()> {
+        let certificates = JuceConfig::get_hosts().await?;
+        // let certificates = CertificateStore::get_all().await?;
+        // let dns_list: Vec<String> = certificates.into_keys().collect();
+
+        let mut config = NginxConfig::get().await?;
+        for (_, val) in config.listeners.iter_mut() {
+            val.tls = Some(Tls {
+                // certificate: dns_list.clone(),
+                certificate: certificates.clone(),
+            });
+        }
+        let res = NginxConfig::set(&config).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
