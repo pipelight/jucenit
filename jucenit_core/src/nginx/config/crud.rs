@@ -144,7 +144,8 @@ mod tests {
     #[tokio::test]
     async fn set_config_from_file() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        let res = NginxConfig::set(&NginxConfig::from(&JuceConfig::from(&config_file))).await?;
+        let nginx_config = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
+        let res = NginxConfig::set(&nginx_config).await?;
         println!("{:#?}", res);
         Ok(())
     }

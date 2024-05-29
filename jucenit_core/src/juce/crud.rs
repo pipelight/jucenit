@@ -42,7 +42,10 @@ impl Config {
         // and try push to nginx-unit.
         let mut main = Self::pull()?;
         Config::merge(&mut main, chunk)?;
-        NginxConfig::set(&NginxConfig::from(&main)).await?;
+
+        let nginx = NginxConfig::from(&main).await?;
+        NginxConfig::set(&nginx).await?;
+
         Self::serialize(&main)?;
 
         Ok(())
@@ -71,7 +74,8 @@ impl Config {
             main.units.insert(match_, unit);
         }
 
-        NginxConfig::set(&NginxConfig::from(&main)).await?;
+        let nginx = NginxConfig::from(&main).await?;
+        NginxConfig::set(&nginx).await?;
         Config::set(&main).await?;
         Ok(())
     }
@@ -90,7 +94,8 @@ impl Config {
      * Set the chunk as the global configuration, erasing the previous global configuration.
      */
     pub async fn set(chunk: &Config) -> Result<()> {
-        NginxConfig::set(&NginxConfig::from(chunk)).await?;
+        let nginx = NginxConfig::from(chunk).await?;
+        NginxConfig::set(&nginx).await?;
         Self::serialize(chunk)?;
         Ok(())
     }
