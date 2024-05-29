@@ -4,22 +4,29 @@ Warning: Early development stage.
 
 Jucenit is a is a set of utilities to manage
 [nginx unit](https://github.com/nginx/unit) web server easily
-through scattered toml/yaml files.
+through scattered toml files.
 
 ## Features
 
-- **Split** your configuration across multiple files in **Toml and yaml**.
+- **Split** your configuration across multiple files in **Toml**.
 - **Automatic ssl** renewal.
+
+## Usage
+
+Update the global configuration with a configuration chunk like above.
+
+```sh
+jucenit push
+# or
+jucenit push --file jucenit.dev.toml
+```
 
 ## Example (reverse-proxy)
 
 At your project route create a `jucenit.toml` file.
 
-It binds to port 80 and 443 of public localhost
-and redirects every requests to "example.com" to the port 8888.
-
 ```toml
-# jucenit.example.toml
+# jucenit.toml
 
 [[unit]]
 listeners = ["*:80","*:443"]
@@ -31,92 +38,48 @@ host = "example.com"
 proxy = "http://127.0.0.1:8888"
 ```
 
-## Usage
+This file defines
 
-Update global configuration with a configuration chunk like above.
+- a bound to port 80 and port 443 of localhost public ip.
+- that redirects requests to "example.com" to the port 8888 of localhost default private ip.
 
-_Either seeks for the nearest `jucenit*.toml` file_
+## Example (file sharing)
 
-```sh
-jucenit push
+At your project route create a `jucenit.toml` file.
+
+```toml
+# jucenit.toml
+
+[[unit]]
+listeners = ["*:80","*:443"]
+
+[unit.match]
+host = "test.com"
+uri = "/files"
+
+[unit.action]
+share =[
+    "/path/to/my_files"
+]
 ```
 
-_or provide a file path_
+This file defines
 
-```sh
-jucenit push --file
-```
-
-Convert jucenit toml configuration into nginx-unit json configuration.
-(S/O `caddy adapt` command).
-
-```sh
-jucenit adapt --file jucenit.example.toml
-```
-
-```json
-{
-  "listeners": {
-    "*:80": {
-      "pass": "routes/jucenit_[*:80]"
-    },
-    "*:443": {
-      "pass": "routes/jucenit_[*:443]"
-    }
-  },
-  "routes": {
-    "jucenit_[*:443]": [
-      {
-        "action": {
-          "proxy": "http://127.0.0.1:8888"
-        },
-        "match": {
-          "uri": "http://example.com/"
-        }
-      }
-    ],
-    "jucenit_[*:80]": [
-      {
-        "action": {
-          "proxy": "http://127.0.0.1:8888"
-        },
-        "match": {
-          "uri": "http://example.com/"
-        }
-      }
-    ]
-  }
-}
-```
-
-Edit the whole configuration with your favorite editor.
-It is actually the only way to delete configuration parts.
-
-```sh
-jucenit edit
-```
+- a bound to port 80 and port 443 of localhost public ip.
+- that serves files at "/path/to/my_files" when "test.com/files" is requested.
 
 ## How it works ?
 
-Common things we do with a web server is proxying and load-balancing.
-Jucenit focuses those use cases.
-
 Jucenit translates a simpler syntax to the original nginx-unit json.
-Every configuration files generate a configuration chunk that is merged with the existing
-ray nginx-unit configuration.
-
-### Flexibility
-
-If you seek complexity and wish to tear appart your web server
-you can use jucenit simple syntax aside of raw nginx-unit Json configuation.
-No need to use multiple web servers.
+Every configuration files generate a configuration chunk
+that is merged with the existing nginx-unit configuration.
 
 ## Install
 
 You need a running instance of [nginx unit](https://github.com/nginx/unit) that listens on port 8080.
 Everything can be found in the official documentation.
 
-Create or Modifi the systemd/initd unit to run unit bound to the port 8080.
+Create or Modify the systemd/initd unit to run unit bound to the port 8080.
 
 ### Nixos
 
