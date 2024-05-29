@@ -113,6 +113,9 @@ impl Config {
         Self::serialize(chunk)?;
         Ok(())
     }
+
+    // Methods below are for convernient serializing.
+
     fn serialize(config: &Config) -> Result<()> {
         let file_path = Self::ensure_lock_file()?;
 
