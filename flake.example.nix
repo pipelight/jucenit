@@ -32,4 +32,19 @@
       ExecStartPost = lib.mkForce "";
     };
   };
+  ## Custom systemd unit.
+  systemd.services.jucenit = let
+    jucenit = inputs.jucenit.packages.${system}.default;
+  in {
+    enable = true;
+    after = ["network.target"];
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      ExecStart = lib.mkForce ''
+        ${jucenit}/bin/jucenit \
+          ssl \
+          --watch
+      '';
+    };
+  };
 }

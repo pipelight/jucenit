@@ -13,12 +13,24 @@ through scattered toml files.
 
 ## Usage
 
-Update the global configuration with a configuration chunk like above.
+Update the global configuration with a configuration chunk like beneath.
 
 ```sh
 jucenit push
 # or
 jucenit push --file jucenit.dev.toml
+```
+
+Launch a daemon that renews certificats when needed.
+
+```sh
+jucenit ssl --watch
+```
+
+Or renew certificates immediatly.
+
+```sh
+jucenit ssl --renew
 ```
 
 ## Example (reverse-proxy)

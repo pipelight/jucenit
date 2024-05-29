@@ -43,21 +43,38 @@ pub struct Config {
 */
 impl Config {
     /**
-     * Merge the config chunk to the main configuration.
-     * Push the updated configuration to nginx-unit.
+     * Merge a chunk into the already existing configuration.
+     * Apply the result to nginx-unit.
+     * Serialize the configuration into the lock file at /var/spool/jucenit/config.rs
      */
-    pub async fn push(&self) -> Result<()> {
-        let mut merged = Config::get()?;
-        Config::merge(&mut merged, self)?;
-        let res = NginxConfig::set(&NginxConfig::from(&merged)).await?;
+    pub async fn push(chunk: &Config) -> Result<()> {
+        // Merge chunk to main configuration
+        // and try push to nginx-unit.
+        let mut main = Self::pull()?;
+        Config::merge(&mut main, chunk)?;
+        NginxConfig::set(&NginxConfig::from(&main)).await?;
+        Self::serialize(&main)?;
+
         Ok(())
+    }
+    /**
+     * Deserialize the configuration from the lock file at /var/spool/jucenit/config.rs
+     * Returns jucenit global configuration.
+     */
+    pub fn pull() -> Result<Config> {
+        if JUCENIT_CONFIG.lock().unwrap().clone() == Config::default() {
+            let config = Self::deserialize()?;
+            *JUCENIT_CONFIG.lock().unwrap() = config;
+        }
+        let config = JUCENIT_CONFIG.lock().unwrap().clone();
+        Ok(config)
     }
 
     /**
      * Insert a (Match,Unit) tuple into the configuration.
      */
     pub async fn add_unit((match_, unit): (Match, Unit)) -> Result<()> {
-        let mut main = Config::get()?;
+        let mut main = Self::pull()?;
         if unit.kind == UnitKind::SslChallenge {
             main.units.shift_insert(0, match_, unit);
         } else {
@@ -72,7 +89,7 @@ impl Config {
      * Delete a (Match,Unit) tuple from the configuration.
      */
     pub async fn del_unit(match_: Match) -> Result<()> {
-        let mut main = Config::get()?;
+        let mut main = Self::pull()?;
         main.units.shift_remove(&match_);
         Config::set(&main).await?;
 
@@ -88,72 +105,66 @@ impl Config {
     }
 
     /**
-     * Serialize the configuration into the lock file at /var/spool/jucenit/config.rs
+     * DANGER!
+     * Set the chunk as the global configuration, erasing the previous global configuration
      */
     pub async fn set(chunk: &Config) -> Result<()> {
-        // Create/Ensure directory
-        let data_dir = "/var/spool/jucenit";
-        let message = format!("Couldn't create data directory at: {:?}", data_dir);
-        let res = fs::create_dir_all(data_dir)
-            .into_diagnostic()
-            .wrap_err(message)?;
-        let file_path = format!("{}/config.rs", &data_dir);
-        let message = format!("Couldn't create data file at: {:?}", file_path);
+        NginxConfig::set(&NginxConfig::from(chunk)).await?;
+        Self::serialize(chunk)?;
+        Ok(())
+    }
+    fn serialize(config: &Config) -> Result<()> {
+        let file_path = Self::ensure_lock_file()?;
+
+        // Write configuration to lock file
+        let serialized = ron::to_string(config).into_diagnostic()?;
+        let bytes = serialized.as_bytes();
+
+        let message = format!("Couldn't write to data file at: {:?}", file_path);
         let mut file = fs::File::create(&file_path)
             .into_diagnostic()
             .wrap_err(message)?;
 
-        // Merge chunk to main configuration
-        // and try push to nginx-unit.
-        let mut main = Config::get()?;
-        Config::merge(&mut main, chunk)?;
-        NginxConfig::set(&NginxConfig::from(&main)).await?;
-
-        // Write configuration to file
-        let serialized = ron::to_string(&main).into_diagnostic()?;
-        let bytes = serialized.as_bytes();
         file.write_all(bytes).into_diagnostic()?;
-
-        // Set main configuration file permissions (loose)
-        let metadata = file.metadata().into_diagnostic()?;
-        let mut perms = metadata.permissions();
-        perms.set_mode(0o766);
-        fs::set_permissions(file_path, perms).into_diagnostic()?;
 
         Ok(())
     }
-    /**
-     * Deserialize the configuration from the lock file at /var/spool/jucenit/config.rs
-     * Returns jucenit global configuration.
-     */
-    pub fn get() -> Result<Config> {
+    fn deserialize() -> Result<Config> {
+        let file_path = Self::ensure_lock_file()?;
+
+        // Read lock file
+        let message = format!("Couldn't read data file at: {:?}", file_path);
+        let content = fs::read(&file_path).into_diagnostic().wrap_err(message)?;
+        let string = String::from_utf8_lossy(&content);
+
+        // If file is empty return default config
+        let config: Config = match ron::from_str(&string).into_diagnostic() {
+            Ok(res) => res,
+            Err(e) => Config::default(),
+        };
+        Ok(config)
+    }
+    fn ensure_lock_file() -> Result<String> {
         // Create/Ensure directory
         let data_dir = "/var/spool/jucenit";
         let message = format!("Couldn't create data directory at: {:?}", data_dir);
         let res = fs::create_dir_all(data_dir)
             .into_diagnostic()
             .wrap_err(message)?;
+
         let file_path = format!("{}/config.rs", &data_dir);
         let message = format!("Couldn't create data file at: {:?}", file_path);
         let file = fs::File::create(&file_path)
             .into_diagnostic()
             .wrap_err(message)?;
 
-        if JUCENIT_CONFIG.lock().unwrap().clone() == Config::default() {
-            // Read file
-            let message = format!("Couldn't read data file at: {:?}", file_path);
-            let content = fs::read(&file_path).into_diagnostic().wrap_err(message)?;
-            let string = String::from_utf8_lossy(&content);
+        // Set main configuration file permissions (loose)
+        let metadata = file.metadata().into_diagnostic()?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o766);
+        fs::set_permissions(&file_path, perms).into_diagnostic()?;
 
-            // If file is empty return default config
-            let config: Config = match ron::from_str(&string).into_diagnostic() {
-                Ok(res) => res,
-                Err(e) => Config::default(),
-            };
-            *JUCENIT_CONFIG.lock().unwrap() = config;
-        }
-        let config = JUCENIT_CONFIG.lock().unwrap().clone();
-        Ok(config)
+        Ok(file_path)
     }
 }
 
@@ -182,7 +193,7 @@ mod tests {
     use serde::Deserialize;
 
     #[tokio::test]
-    async fn serialize_config() -> Result<()> {
+    async fn set_global_config() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let res = JuceConfig::from(&config_file);
         JuceConfig::set(&res).await?;
@@ -190,7 +201,7 @@ mod tests {
     }
     #[test]
     fn deserialize_config() -> Result<()> {
-        let res = JuceConfig::get()?;
+        let res = JuceConfig::pull()?;
         println!("{:#?}", res);
         Ok(())
     }

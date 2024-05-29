@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 // Error Handling
 use miette::Result;
 //
-use jucenit_core::{ConfigFile, Nginx, NginxConfig};
+use jucenit_core::{ConfigFile, JuceConfig, NginxConfig};
 
 /*
 The Cli struct is the entrypoint for command line argument parsing:
@@ -48,28 +48,15 @@ impl Cli {
         match cli.commands {
             Commands::Push(args) => {
                 if let Some(file) = args.file {
-                    NginxConfig::update(&NginxConfig::from(&ConfigFile::load(&file)?)).await?;
+                    let config_file = ConfigFile::load(&file)?;
+                    JuceConfig::push(&JuceConfig::from(&config_file)).await?;
                 } else {
-                    NginxConfig::update(&NginxConfig::from(&ConfigFile::get()?)).await?;
+                    let config_file = ConfigFile::get()?;
+                    JuceConfig::push(&JuceConfig::from(&config_file)).await?;
                 }
-            }
-            Commands::Adapt(args) => {
-                if let Some(file) = args.file {
-                    ConfigFile::load(&file)?.adapt()?;
-                } else {
-                    ConfigFile::get()?.adapt()?;
-                }
-            }
-            Commands::Edit => {
-                // NginxConfig::get().await?.edit().await?;
-                // run stuff
             }
             Commands::Clean(args) => {
-                NginxConfig::set(&NginxConfig::default()).await?;
-                if args.ssl {
-                    CertificateStore::clean().await?;
-                }
-                // run stuff
+                JuceConfig::set(&JuceConfig::default()).await?;
             }
             Commands::Ssl(args) => {
                 if args.renew {
@@ -91,14 +78,12 @@ An enumaration over the differen types of commands available:
 #[derive(Debug, Clone, Eq, PartialEq, Subcommand)]
 pub enum Commands {
     #[command(arg_required_else_help = true)]
-    Adapt(File),
-    #[command(arg_required_else_help = true)]
     Push(File),
     #[command(arg_required_else_help = true)]
     Ssl(Ssl),
+    // Developper commands
+    #[command(hide = true)]
     Clean(Endpoints),
-    Edit,
-    Update,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
@@ -140,17 +125,7 @@ mod tests {
         Ok(())
     }
     #[test]
-    fn adapt_file() -> Result<()> {
-        let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
-        cmd.arg("adapt")
-            .arg("--file")
-            .arg("../examples/jucenit.toml");
-        // .arg("examples/jucenit.toml");
-        cmd.assert().success();
-        Ok(())
-    }
-    #[test]
-    fn update_config() -> Result<()> {
+    fn push_config_file() -> Result<()> {
         let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
         cmd.arg("push")
             .arg("--file")
