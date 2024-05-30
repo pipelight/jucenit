@@ -23,10 +23,9 @@ impl CertificateStore {
      * Update the configuration with fresh ssl.
      */
     pub async fn hydrate() -> Result<()> {
+        #[cfg(debug_assertions)]
         let account = ssl::pebble_account().await?.clone();
-        #[cfg(build = "debug")]
-        let account = ssl::pebble_account().await?.clone();
-        #[cfg(build = "release")]
+        #[cfg(not(debug_assertions))]
         let account = ssl::letsencrypt_account().await?.clone();
         for host in JuceConfig::get_hosts().await? {
             let dns = host;
