@@ -24,7 +24,10 @@ impl CertificateStore {
      */
     pub async fn hydrate() -> Result<()> {
         let account = ssl::pebble_account().await?.clone();
-        // let account = ssl::letsencrypt_account().await?.clone();
+        #[cfg(build = "debug")]
+        let account = ssl::pebble_account().await?.clone();
+        #[cfg(build = "release")]
+        let account = ssl::letsencrypt_account().await?.clone();
         for host in JuceConfig::get_hosts().await? {
             let dns = host;
             // For ACME limitation rate reason
