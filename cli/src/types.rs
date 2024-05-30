@@ -116,12 +116,12 @@ mod tests {
     use miette::{IntoDiagnostic, Result};
     use std::process::Command; // Run commnds
 
-    // #[test]
+    #[test]
     fn parse_command_line() -> Result<()> {
         let e = "jucenit --help";
         let os_str: Vec<&str> = e.split(' ').collect();
         let cli = Cli::parse_from(os_str);
-        println!("{:#?}", cli);
+        // println!("{:#?}", cli);
         Ok(())
     }
     #[test]

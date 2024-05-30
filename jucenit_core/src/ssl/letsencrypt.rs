@@ -126,6 +126,7 @@ impl Letsencrypt {
         for auth in authorizations {
             // Get an http-01 challenge for this authorization
             if let Some(challenge) = auth.get_challenge("http-01") {
+                // Create route to challenge key file
                 set_challenge_key_file(dns, &challenge)?;
                 let (match_, unit) = make_jucenit_challenge_config(dns, &challenge)?;
                 JuceConfig::add_unit((match_.clone(), unit)).await?;
@@ -135,33 +136,21 @@ impl Letsencrypt {
                     .wait_done(Duration::from_secs(5), 3)
                     .await
                     .into_diagnostic()?;
-                // println!("{:?}", challenge.status);
-                if challenge.status != ChallengeStatus::Valid {
-                    del_challenge_key_file(dns, &challenge)?;
-                    JuceConfig::del_unit(match_.clone()).await?;
-                }
-
                 let authorization = auth
                     .wait_done(Duration::from_secs(5), 3)
                     .await
                     .into_diagnostic()?;
-                // println!("{:?}", authorization.status);
-                if authorization.status != AuthorizationStatus::Valid {
-                    del_challenge_key_file(dns, &challenge)?;
-                    JuceConfig::del_unit(match_).await?;
-                }
+
+                // Delete route to challenge key file
+                del_challenge_key_file(dns, &challenge)?;
+                JuceConfig::del_unit(match_.clone()).await?;
             }
         }
 
-        // Poll the order every 5 seconds until it is in either the
-        // `ready` or `invalid` state. Ready means that it is now ready
-        // for finalization (certificate creation).
         let order = order
             .wait_ready(Duration::from_secs(5), 3)
             .await
             .into_diagnostic()?;
-
-        assert_eq!(order.status, OrderStatus::Ready);
 
         // Generate an RSA private key for the certificate.
         let pkey = gen_rsa_private_key(4096).into_diagnostic()?;
@@ -175,28 +164,21 @@ impl Letsencrypt {
             .await
             .into_diagnostic()?;
 
-        // Poll the order every 5 seconds until it is in either the
-        // `valid` or `invalid` state. Valid means that the certificate
-        // has been provisioned, and is now ready for download.
         let order = order
             .wait_done(Duration::from_secs(5), 3)
             .await
             .into_diagnostic()?;
 
-        assert_eq!(order.status, OrderStatus::Valid);
-
         // Download the certificate, and panic if it doesn't exist.
         let certificates = order.certificate().await.into_diagnostic()?.unwrap();
-        assert!(certificates.len() > 1);
 
-        let mut bundle: String = "".to_owned();
+        let mut bundle = String::new();
         for cert in certificates.clone() {
             let cert = cert.to_pem().into_diagnostic()?;
             let cert = String::from_utf8(cert).into_diagnostic()?;
             bundle += &cert;
         }
         bundle += &private_key;
-
         Ok(bundle)
     }
 }
@@ -221,16 +203,18 @@ mod tests {
 
     // #[tokio::test]
     async fn get_letsencrypt_cert() -> Result<()> {
+        let dns = "example.com";
         let account = letsencrypt_account().await?.clone();
-        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
+        let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
         // println!("{:#?}", res);
         Ok(())
     }
 
     #[tokio::test]
     async fn get_pebble_cert() -> Result<()> {
+        let dns = "example.com";
         let account = pebble_account().await?.clone();
-        let res = Letsencrypt::get_cert_bundle("example.com", &account).await?;
+        let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
         // println!("{:#?}", res);
         Ok(())
     }

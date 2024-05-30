@@ -1,6 +1,5 @@
 pub mod certificate;
 pub mod config;
-mod from;
 pub mod ops;
 
 // Reexports

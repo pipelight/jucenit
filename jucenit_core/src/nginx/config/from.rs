@@ -1,10 +1,10 @@
 use miette::Result;
 use std::collections::HashMap;
 
-use super::{CertificateStore, Config as NginxConfig};
 use crate::cast::{Config as ConfigFile, Unit as ConfigFileUnit};
 use crate::juce::{Config as JuceConfig, Unit as JuceUnit};
 use crate::mapping::{ListenerOpts, Route as NginxRoute, Tls};
+use crate::nginx::{CertificateStore, Config as NginxConfig};
 
 // impl From<&JuceConfig> for NginxConfig {
 impl NginxConfig {

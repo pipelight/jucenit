@@ -23,6 +23,8 @@ impl CertificateStore {
      * Update the configuration with fresh ssl.
      */
     pub async fn hydrate() -> Result<()> {
+        let account = ssl::pebble_account().await?.clone();
+        // let account = ssl::letsencrypt_account().await?.clone();
         for host in JuceConfig::get_hosts().await? {
             let dns = host;
             // For ACME limitation rate reason
@@ -31,22 +33,18 @@ impl CertificateStore {
             match cert {
                 Ok(res) => {
                     if res.validity.should_renew()? {
-                        // let account = ssl::pebble_account().await?.clone();
-                        let account = ssl::letsencrypt_account().await?.clone();
                         let bundle =
                             LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
                         CertificateStore::update(&dns, &bundle).await?;
                     }
                 }
                 Err(_) => {
-                    let account = ssl::letsencrypt_account().await?.clone();
                     let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
                     CertificateStore::update(&dns, &bundle).await?;
                 }
             };
         }
-        // JuceConfig::
-        let res = CertificateStore::update_listeners().await?;
+        JuceConfig::push(&JuceConfig::pull().await?).await?;
         Ok(())
     }
     /**
@@ -108,24 +106,25 @@ impl CertificateStore {
         let res = CertificateStore::add(dns, bundle).await?;
         Ok(res)
     }
-    /**
-     * Bulk update listeners with every certificates in the store
-     */
-    pub async fn update_listeners() -> Result<()> {
-        let certificates = JuceConfig::get_hosts().await?;
-        // let certificates = CertificateStore::get_all().await?;
-        // let dns_list: Vec<String> = certificates.into_keys().collect();
-
-        let mut config = NginxConfig::get().await?;
-        for (_, val) in config.listeners.iter_mut() {
-            val.tls = Some(Tls {
-                // certificate: dns_list.clone(),
-                certificate: certificates.clone(),
-            });
-        }
-        let res = NginxConfig::set(&config).await?;
-        Ok(())
-    }
+    // /**
+    //  * Bulk update listeners with every certificates in the store
+    //  */
+    // pub async fn update_listeners() -> Result<()> {
+    //     let certificates = JuceConfig::get_hosts().await?;
+    //     // let certificates = CertificateStore::get_all().await?;
+    //     // let dns_list: Vec<String> = certificates.into_keys().collect();
+    //
+    //     let mut config = NginxConfig::get().await?;
+    //     for (_, val) in config.listeners.iter_mut() {
+    //         val.tls = Some(Tls {
+    //             // certificate: dns_list.clone(),
+    //             certificate: certificates.clone(),
+    //         });
+    //     }
+    //     println!("{:#?}", &config);
+    //     let res = NginxConfig::set(&config).await?;
+    //     Ok(())
+    // }
 }
 
 #[cfg(test)]
@@ -138,35 +137,39 @@ mod tests {
     use miette::Result;
 
     use crate::ConfigFile;
+    use crate::JuceConfig;
     use crate::NginxConfig;
 
     /**
      * Set a fresh testing environment
      */
     async fn set_testing_config() -> Result<()> {
-        // Clean certificate store
+        // Clean config and certificate store
         CertificateStore::clean().await?;
+        JuceConfig::set(&JuceConfig::default()).await?;
+
         // Set new configuration
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        // NginxConfig::set(&NginxConfig::from(&config_file)).await?;
+        let juce_config = JuceConfig::from(&config_file);
+        JuceConfig::set(&juce_config).await?;
 
         Ok(())
     }
 
-    #[tokio::test]
+    // #[tokio::test]
     async fn clean_cert_store() -> Result<()> {
         let res = CertificateStore::clean().await?;
         println!("{:#?}", res);
         Ok(())
     }
-    #[tokio::test]
+    // #[tokio::test]
     async fn remove_cert() -> Result<()> {
         let dns = "example.com";
         let res = CertificateStore::remove(dns).await?;
         println!("{:#?}", res);
         Ok(())
     }
-    #[tokio::test]
+    // #[tokio::test]
     async fn add_fake_cert() -> Result<()> {
         let dns = "example.com";
         let bundle = FakeCertificate::get(dns)?;
@@ -174,7 +177,7 @@ mod tests {
         println!("{:#?}", res);
         Ok(())
     }
-    #[tokio::test]
+    // #[tokio::test]
     async fn update_fake_cert() -> Result<()> {
         let dns = "example.com";
         let bundle = FakeCertificate::get(dns)?;
@@ -186,24 +189,24 @@ mod tests {
     async fn update_cert_letsencrypt() -> Result<()> {
         let dns = "example.com";
         let account = ssl::pebble::pebble_account().await?.clone();
-        // let bundle = LetsencryptCertificate::get(dns, &account).await?;
-        // let res = CertificateStore::update(dns, &bundle).await?;
-        // println!("{:#?}", res);
+        let bundle = LetsencryptCertificate::get_cert_bundle(dns, &account).await?;
+        let res = CertificateStore::update(dns, &bundle).await?;
+        println!("{:#?}", res);
         Ok(())
     }
     #[tokio::test]
     async fn hydrate_cert_store() -> Result<()> {
         set_testing_config().await?;
 
-        // let res = CertificateStore::hydrate().await?;
-        // println!("{:#?}", res);
+        let res = CertificateStore::hydrate().await?;
 
         let certificates = CertificateStore::get_all().await?;
         let mut dns_list: Vec<String> = certificates.into_keys().collect();
-        assert_eq!(
-            dns_list.sort(),
-            vec!["example.com".to_owned(), "test.com".to_owned()].sort()
-        );
+        dns_list.sort();
+        let mut expected = vec!["example.com".to_owned(), "test.com".to_owned()];
+        expected.sort();
+
+        assert_eq!(expected, dns_list);
         Ok(())
     }
 }

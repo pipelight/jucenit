@@ -17,14 +17,19 @@ impl CertificateStore {
     pub async fn get(dns: &str) -> Result<CertificateInfo> {
         let settings = SETTINGS.lock().unwrap().clone();
 
-        let cert = reqwest::get(settings.get_url() + "/certificates/" + dns + "/chain")
+        let mut cert = reqwest::get(settings.get_url() + "/certificates/" + dns + "/chain")
             .await
             .into_diagnostic()?
             .json::<Vec<CertificateInfo>>()
             .await
             .into_diagnostic()?;
 
-        Ok(cert.first().unwrap().to_owned())
+        // Get first element
+        let message = format!("No certificate in the store for {:?}", dns);
+        let err = Error::msg(message);
+
+        cert.reverse();
+        cert.pop().ok_or(err)
     }
     /**
      * Get every certificate from nginx-unit certificate store.
