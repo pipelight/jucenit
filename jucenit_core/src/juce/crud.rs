@@ -192,7 +192,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, Eq, PartialEq, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
     pub id: Option<String>,
@@ -201,7 +201,7 @@ pub struct Unit {
     pub kind: UnitKind,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UnitKind {
     #[default]
     Managed,

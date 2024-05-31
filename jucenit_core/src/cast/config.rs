@@ -75,6 +75,10 @@ impl Config {
             }
         }
     }
+    pub fn to_toml(config: &Config) -> Result<String> {
+        let res = toml::to_string_pretty(config).into_diagnostic();
+        res
+    }
     /**
      * Returns a jucenit configuration from a provided yaml file path.
      */
@@ -88,6 +92,10 @@ impl Config {
                 Err(err.into())
             }
         }
+    }
+    pub fn to_yaml(config: &Config) -> Result<String> {
+        let res = serde_yaml::to_string(config).into_diagnostic();
+        res
     }
 }
 

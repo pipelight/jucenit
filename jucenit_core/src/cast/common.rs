@@ -5,7 +5,7 @@ use utils::teleport::Portal;
 use miette::{Error, IntoDiagnostic, Result};
 
 // Common structs to file config and unit config
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Action {
     // Reverse proxy
