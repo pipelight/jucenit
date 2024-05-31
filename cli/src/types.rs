@@ -55,8 +55,11 @@ impl Cli {
                     JuceConfig::push(&JuceConfig::from(&config_file)).await?;
                 }
             }
-            Commands::Clean(args) => {
+            Commands::Clean => {
                 JuceConfig::set(&JuceConfig::default()).await?;
+            }
+            Commands::Edit => {
+                JuceConfig::pull().await?.edit().await?;
             }
             Commands::Ssl(args) => {
                 if args.renew {
@@ -86,19 +89,14 @@ pub enum Commands {
     Ssl(Ssl),
     // Developper commands
     #[command(hide = true)]
-    Clean(Endpoints),
+    Clean,
+    Edit,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
 pub struct File {
     #[arg(long)]
     pub file: Option<String>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Parser)]
-pub struct Endpoints {
-    #[arg(long)]
-    pub ssl: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]

@@ -1,9 +1,12 @@
+use crate::cast::Config as ConfigFile;
 use crate::{Action, Match};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 // File
+use std::env;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::process::{Command, Stdio};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -107,6 +110,38 @@ impl Config {
         let nginx = NginxConfig::from(chunk).await?;
         NginxConfig::set(&nginx).await?;
         Self::serialize(chunk).await?;
+        Ok(())
+    }
+
+    pub async fn edit(&self) -> Result<()> {
+        let tmp_dir = "/tmp/jucenit";
+        fs::create_dir_all(tmp_dir).await.into_diagnostic()?;
+        let path = "/tmp/jucenit/jucenit.config.tmp.toml".to_owned();
+
+        // Retrieve config
+        let toml = ConfigFile::from(self).to_toml()?;
+        // Create and write to file
+        let mut file = fs::File::create(path.clone()).await.into_diagnostic()?;
+        let bytes = toml.as_bytes();
+        file.write_all(bytes).await.into_diagnostic()?;
+
+        // Modify file with editor
+        let editor = env::var("EDITOR").into_diagnostic()?;
+        let child = Command::new(editor)
+            .arg(path.clone())
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("Couldn't spawn a detached subprocess");
+        let output = child.wait_with_output().into_diagnostic()?;
+
+        // Try Update nginx-unit config
+        let tmp_config = Config::from(&ConfigFile::load(&path)?);
+        Config::set(&tmp_config).await?;
+
+        // Clean up tmp files before exit
+        fs::remove_file(path).await.into_diagnostic()?;
         Ok(())
     }
 

@@ -75,8 +75,8 @@ impl Config {
             }
         }
     }
-    pub fn to_toml(config: &Config) -> Result<String> {
-        let res = toml::to_string_pretty(config).into_diagnostic();
+    pub fn to_toml(&self) -> Result<String> {
+        let res = toml::to_string_pretty(self).into_diagnostic();
         res
     }
     /**
@@ -93,8 +93,8 @@ impl Config {
             }
         }
     }
-    pub fn to_yaml(config: &Config) -> Result<String> {
-        let res = serde_yaml::to_string(config).into_diagnostic();
+    pub fn to_yaml(&self) -> Result<String> {
+        let res = serde_yaml::to_string(self).into_diagnostic();
         res
     }
 }

@@ -16,7 +16,8 @@ Tooling:
 
 - Convenience commands:
 
-  - []: edit global configuration with favorite editor
+  - [x]: edit global configuration with favorite editor
+  - []: "push -d" to remove a chunk from global configuration
   - []: pretty print configuration chunk as json
 
 Tls/Ssl:
@@ -75,6 +76,21 @@ Update the global configuration with your configuration chunks.
 jucenit push
 # or
 jucenit push --file jucenit.toml
+```
+
+### Edit the global configuration
+
+The only way to cherry remove chunks from the global configuration
+is to edit the main configuration with:
+
+```sh
+jucenit edit
+```
+
+Or to delete everything previously pushed to the global configuration
+
+```sh
+jucenit clean
 ```
 
 ### Tls/Ssl management
