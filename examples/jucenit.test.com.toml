@@ -1,5 +1,5 @@
 [[unit]]
-listeners = ["*:80"]
+listeners = ["*:443"]
 
 [unit.match]
 host = "test.com"

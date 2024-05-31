@@ -62,6 +62,9 @@ impl Cli {
                 if args.renew {
                     CertificateStore::hydrate().await?;
                 }
+                if args.clean {
+                    CertificateStore::clean().await?;
+                }
             }
             _ => {
 
@@ -104,6 +107,8 @@ pub struct Ssl {
     pub renew: bool,
     #[arg(long)]
     pub watch: bool,
+    #[arg(long, hide = false)]
+    pub clean: bool,
 }
 
 #[cfg(test)]

@@ -19,8 +19,8 @@ pub struct CertificateStore;
 impl CertificateStore {
     /**
      * Poll the configuration for hosts and seek through certificate store
-     * for matching valid certificates or generate them.
-     * Update the configuration with fresh ssl.
+     * for matching valid certificates or generate them,
+     * and update nginx-unit configuration with fresh ssl.
      */
     pub async fn hydrate() -> Result<()> {
         #[cfg(debug_assertions)]
@@ -45,6 +45,19 @@ impl CertificateStore {
                     CertificateStore::update(&dns, &bundle).await?;
                 }
             };
+        }
+        JuceConfig::push(&JuceConfig::pull().await?).await?;
+        Ok(())
+    }
+    /**
+     * Remove every certificate from nginx-unit certificate store.
+     * and update nginx-unit configuration
+     */
+    pub async fn clean() -> Result<()> {
+        // Get list of every certificates in nginx-unit certificate store.
+        let certificates = CertificateStore::get_all().await?;
+        for (key, _) in certificates {
+            CertificateStore::remove(&key).await?;
         }
         JuceConfig::push(&JuceConfig::pull().await?).await?;
         Ok(())
@@ -84,17 +97,6 @@ impl CertificateStore {
             .await
             .into_diagnostic()?;
         Ok(res)
-    }
-    /**
-     * Remove every certificate from nginx-unit certificate store.
-     */
-    pub async fn clean() -> Result<()> {
-        // Get list of every certificates in nginx-unit certificate store.
-        let certificates = CertificateStore::get_all().await?;
-        for (key, _) in certificates {
-            CertificateStore::remove(&key).await?;
-        }
-        Ok(())
     }
     /**
      * Replace a certificate bundle:

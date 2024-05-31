@@ -1,8 +1,7 @@
 [[unit]]
-listeners = ["*:80"]
+listeners = ["*:443"]
 
 [unit.match]
-# hosts = ["example.com"]
 host = "example.com"
 
 [unit.action]

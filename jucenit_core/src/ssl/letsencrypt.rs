@@ -22,14 +22,19 @@ use crate::cast::{Action, Match};
 use crate::juce::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
 use openssl::x509::X509;
 
-// Production
-// const LETS_ENCRYPT_URL: &'static str = "https://acme-v02.api.letsencrypt.org/directory";
-// Stagging
+// Production url
 pub static LETS_ENCRYPT_URL: Lazy<Arc<Mutex<String>>> = Lazy::new(|| {
     Arc::new(Mutex::new(
-        "https://acme-staging-v02.api.letsencrypt.org/directory".to_owned(),
+        "https://acme-v02.api.letsencrypt.org/directory".to_owned(),
     ))
 });
+// Stagging url
+// pub static LETS_ENCRYPT_URL: Lazy<Arc<Mutex<String>>> = Lazy::new(|| {
+//     Arc::new(Mutex::new(
+//         "https://acme-staging-v02.api.letsencrypt.org/directory".to_owned(),
+//     ))
+// });
+
 /**
 * Create an ACME account to use for the order. For production
 * purposes, you should keep the account (and private key), so
@@ -58,6 +63,9 @@ pub async fn letsencrypt_account() -> Result<Arc<Account>> {
 * with the content of `challenge.key_authorization()??`.
 */
 fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Match, JuceUnit)> {
+    // Challenge ports
+    let http_port = 80;
+    let tls_port = 443;
     // Update nginx-unit config
     let match_ = Match {
         uri: Some(format!(
@@ -70,7 +78,7 @@ fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Ma
     let unit = JuceUnit {
         id: Some(format!("challenge_{}", dns)),
         kind: UnitKind::SslChallenge,
-        listeners: vec!["*:5002".to_owned()],
+        listeners: vec![format!("*:{}", http_port)],
         action: Some(Action {
             share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
             ..Action::default()
@@ -88,9 +96,12 @@ fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
 
     // Create and write to file
     let tmp_dir = "/tmp/jucenit";
-    fs::create_dir_all(tmp_dir).into_diagnostic()?;
-    let file_path = format!("/tmp/jucenit/challenge_{}.txt", dns);
+    let message = format!("Couldn't create dir: {:?}", tmp_dir);
+    fs::create_dir_all(tmp_dir)
+        .into_diagnostic()
+        .wrap_err(message)?;
 
+    let file_path = format!("/tmp/jucenit/challenge_{}.txt", dns);
     let message = format!("Couldn't create file at: {:?}", file_path);
     let mut file = fs::File::create(file_path.clone())
         .into_diagnostic()
@@ -133,13 +144,15 @@ impl Letsencrypt {
 
                 let challenge = challenge.validate().await.into_diagnostic()?;
                 let challenge = challenge
-                    .wait_done(Duration::from_secs(5), 3)
+                    .wait_done(Duration::from_secs(5), 10)
                     .await
                     .into_diagnostic()?;
+                assert_eq!(challenge.status, ChallengeStatus::Valid);
                 let authorization = auth
-                    .wait_done(Duration::from_secs(5), 3)
+                    .wait_done(Duration::from_secs(5), 10)
                     .await
                     .into_diagnostic()?;
+                assert_eq!(authorization.status, AuthorizationStatus::Valid);
 
                 // Delete route to challenge key file
                 del_challenge_key_file(dns, &challenge)?;
@@ -148,9 +161,10 @@ impl Letsencrypt {
         }
 
         let order = order
-            .wait_ready(Duration::from_secs(5), 3)
+            .wait_ready(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
+        assert_eq!(order.status, OrderStatus::Ready);
 
         // Generate an RSA private key for the certificate.
         let pkey = gen_rsa_private_key(4096).into_diagnostic()?;
@@ -165,12 +179,14 @@ impl Letsencrypt {
             .into_diagnostic()?;
 
         let order = order
-            .wait_done(Duration::from_secs(5), 3)
+            .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
+        assert_eq!(order.status, OrderStatus::Valid);
 
         // Download the certificate, and panic if it doesn't exist.
         let certificates = order.certificate().await.into_diagnostic()?.unwrap();
+        assert!(certificates.len() > 1);
 
         let mut bundle = String::new();
         for cert in certificates.clone() {

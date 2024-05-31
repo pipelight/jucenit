@@ -160,13 +160,15 @@ impl Config {
 
         file.write_all(bytes).await.into_diagnostic()?;
 
-        // Set main configuration file permissions (loose)
+        // Try to set main configuration file permissions (loose)
+        // and fail silently
         let metadata = file.metadata().await.into_diagnostic()?;
         let mut perms = metadata.permissions();
-        perms.set_mode(0o766);
+        perms.set_mode(0o774);
         fs::set_permissions(&file_path, perms)
             .await
-            .into_diagnostic()?;
+            .into_diagnostic()
+            .ok();
 
         Ok(())
     }

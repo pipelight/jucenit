@@ -41,7 +41,7 @@ At your project route create a `jucenit.toml` file.
 # jucenit.toml
 
 [[unit]]
-listeners = ["*:80","*:443"]
+listeners = ["*:443"]
 
 [unit.match]
 host = "example.com"
@@ -52,7 +52,7 @@ proxy = "http://127.0.0.1:8888"
 
 This file defines
 
-- a bound to port 80 and port 443 of localhost public ip.
+- a bound to port 443 of localhost public ip.
 - that redirects requests to "example.com" to the port 8888 of localhost default private ip.
 
 ## Example (file sharing)
@@ -63,7 +63,7 @@ At your project route create a `jucenit.toml` file.
 # jucenit.toml
 
 [[unit]]
-listeners = ["*:80","*:443"]
+listeners = ["*:443"]
 
 [unit.match]
 host = "test.com"
@@ -77,7 +77,7 @@ share =[
 
 This file defines
 
-- a bound to port 80 and port 443 of localhost public ip.
+- a bound to port 443 of localhost public ip.
 - that serves files at "/path/to/my_files" when "test.com/files" is requested.
 
 ## How it works ?

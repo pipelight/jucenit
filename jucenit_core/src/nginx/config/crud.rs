@@ -46,10 +46,9 @@ impl Default for Config {
 
         let listeners = HashMap::new();
 
-        // Ensure usual web routes exist
-        let mut routes = HashMap::new();
-        routes.insert("jucenit_[*:80]".to_owned(), vec![]);
-        routes.insert("jucenit_[*:443]".to_owned(), vec![]);
+        // Ensure routes is an array
+        // Avoid Json inconsistency
+        let routes = HashMap::new();
 
         Config {
             routes,
