@@ -17,20 +17,20 @@ Tooling:
 - Convenience commands:
 
   - [x]: edit global configuration with favorite editor
-  - []: "push -d" to remove a chunk from global configuration
-  - []: pretty print configuration chunk as json
+  - [ ]: "push -d" to remove a chunk from global configuration
+  - [ ]: pretty print configuration chunk as json
 
 Tls/Ssl:
 
 - ACME Challenge support:
 
   - [x]: http-01
-  - []: tls-ALPN-01
+  - [ ]: tls-ALPN-01
 
 - Automatic certificate renewal:
 
-  - []: make a daemon that watches certificates validity
-  - []: provide a template systemd unit
+  - [ ]: make a daemon that watches certificates validity
+  - [ ]: provide a template systemd unit
 
 ## Usage
 
