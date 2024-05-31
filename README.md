@@ -1,10 +1,9 @@
-# Jucenit - Easy uncompriomising web server.
+# Jucenit - A simple web server.
 
 Warning: Early development stage.
 
-Jucenit is a is a set of utilities to manage
-[nginx unit](https://github.com/nginx/unit) web server easily
-through scattered toml files.
+Jucenit is a web server configurable through short scattered toml files.
+Internally uses [nginx unit](https://github.com/nginx/unit).
 
 ## Features
 
@@ -13,33 +12,12 @@ through scattered toml files.
 
 ## Usage
 
-Update the global configuration with a configuration chunk like beneath.
+### Expose services
 
-```sh
-jucenit push
-# or
-jucenit push --file jucenit.dev.toml
-```
-
-Launch a daemon that renews certificats when needed.
-
-```sh
-jucenit ssl --watch
-```
-
-Or renew certificates immediatly.
-
-```sh
-jucenit ssl --renew
-```
-
-## Example (reverse-proxy)
-
-At your project route create a `jucenit.toml` file.
+Use it as a reverse-proxy.
 
 ```toml
 # jucenit.toml
-
 [[unit]]
 listeners = ["*:443"]
 
@@ -50,14 +28,7 @@ host = "example.com"
 proxy = "http://127.0.0.1:8888"
 ```
 
-This file defines
-
-- a bound to port 443 of localhost public ip.
-- that redirects requests to "example.com" to the port 8888 of localhost default private ip.
-
-## Example (file sharing)
-
-At your project route create a `jucenit.toml` file.
+Or for file sharing
 
 ```toml
 # jucenit.toml
@@ -75,30 +46,67 @@ share =[
 ]
 ```
 
-This file defines
+And any more possibilities at [nginx unit](https://github.com/nginx/unit).
 
-- a bound to port 443 of localhost public ip.
-- that serves files at "/path/to/my_files" when "test.com/files" is requested.
+Update the global configuration with your configuration chunks.
+
+```sh
+jucenit push
+# or
+jucenit push --file jucenit.toml
+```
+
+### Tls/Ssl management
+
+Add new certificates or Renew almost expired certificates.
+
+```sh
+jucenit ssl --renew
+```
+
+Remove every certificates.
+
+```sh
+jucenit ssl --clean
+```
 
 ## How it works ?
 
-Jucenit translates a simpler syntax to the original nginx-unit json.
-Every configuration files generate a configuration chunk
-that is merged with the existing nginx-unit configuration.
+Jucenit only convert files.
+
+Jucenit translates its simple **toml** configuration into nginx-unit **json** configuration.
+It then pushes those file chunks through nginx-unit API.
 
 ## Install
 
-You need a running instance of [nginx unit](https://github.com/nginx/unit) that listens on port 8080.
-Everything can be found in the official documentation.
+You first need a running instance of nginx-unit.
+See the [installation guide](https://unit.nginx.org/installation/):
 
-Create or Modify the systemd/initd unit to run unit bound to the port 8080.
+Add following configuration changes:
 
-### Nixos
+```sh
+unitd --control '127.0.0.1:8080'
+```
 
-With nixos, install the flake.
-and add a nix configuration like what is inside `flake.example.nix`
+So it listens on tcp port 8080 instead of defaut unix socket.
+
+### with Cargo
+
+Install with cargo.
+
+```sh
+cargo install --git https://github.com/pipelight/jucenit
+```
+
+### with Nixos
+
+First, add the flake url to your flakes **inputs**.
+
+```nix
+inputs = {
+    jucenit.url = "github:pipelight/jucenit";
+};
+```
+
+Then add a nix configuration like what is inside `flake.example.nix`
 to your actual nixos configuration.
-
-### Cargo
-
-Install with cargo rust.
