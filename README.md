@@ -10,28 +10,6 @@ Internally uses [nginx unit](https://github.com/nginx/unit).
 - **Split** your configuration across multiple files in **Toml**.
 - **Easy ssl** renewal.
 
-## Roadmap
-
-Tooling:
-
-Convenience commands:
-
-- [x]: edit global configuration with favorite editor
-- [ ]: "push -d" to remove a chunk from global configuration
-- [ ]: pretty print configuration chunk as json
-
-Tls/Ssl:
-
-ACME Challenge support:
-
-- [x]: http-01
-- [ ]: tls-ALPN-01
-
-Automatic certificate renewal:
-
-- [ ]: make a daemon that watches certificates validity
-- [ ]: provide a template systemd unit
-
 ## Usage
 
 ### Expose services
@@ -149,3 +127,25 @@ inputs = {
 
 Then add a nix configuration like what is inside `flake.example.nix`
 to your actual nixos configuration.
+
+## Roadmap
+
+Tooling:
+
+Convenience commands:
+
+- [x]: edit global configuration with favorite editor
+- [ ]: "push -d" to remove a chunk from global configuration
+- [ ]: pretty print configuration chunk as json
+
+Tls/Ssl:
+
+ACME Challenge support:
+
+- [x]: http-01
+- [ ]: tls-ALPN-01
+
+Automatic certificate renewal:
+
+- [ ]: make a daemon that watches certificates validity
+- [ ]: provide a template systemd unit
