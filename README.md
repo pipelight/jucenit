@@ -88,7 +88,7 @@ Add the following configuration changes:
 unitd --control '127.0.0.1:8080'
 ```
 
-So it listens on tcp port 8080 instead of defaut unix socket.
+So it listens on tcp port 8080 instead of default unix socket.
 
 ### with Cargo
 
