@@ -1,7 +1,6 @@
 use super::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
-use crate::cast::{Config as ConfigFile, Unit as ConfigFileUnit};
+use crate::cast::{Config as ConfigFile, Match, Unit as ConfigFileUnit};
 use crate::mapping::{ListenerOpts, Route};
-use crate::nginx::Config as NginxConfig;
 use indexmap::IndexMap;
 
 impl From<&ConfigFile> for JuceConfig {
@@ -11,15 +10,23 @@ impl From<&ConfigFile> for JuceConfig {
         // Iterate over config file [[unit]] steps
         for e in config_file.unit.clone() {
             // Fill the IndexMap
-            jucenit_config.units.insert(
-                e.match_,
-                JuceUnit {
-                    id: e.id,
-                    action: e.action,
-                    listeners: e.listeners,
-                    kind: UnitKind::Managed,
-                },
-            );
+            if let Some(hosts) = e.match_.hosts {
+                for host in hosts {
+                    jucenit_config.units.insert(
+                        Match {
+                            host: Some(host),
+                            uri: e.match_.uri.clone(),
+                            source: e.match_.source.clone(),
+                        },
+                        JuceUnit {
+                            id: e.id.clone(),
+                            action: e.action.clone(),
+                            listeners: e.listeners.clone(),
+                            kind: UnitKind::Managed,
+                        },
+                    );
+                }
+            }
         }
         jucenit_config
     }

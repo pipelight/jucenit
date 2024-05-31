@@ -1,4 +1,4 @@
-use super::common::{Action, Match};
+use super::common::Action;
 use crate::nginx::Config as NginxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -98,8 +98,18 @@ pub struct Unit {
     pub id: Option<String>,
     pub action: Option<Action>,
     #[serde(rename = "match")]
-    pub match_: Match,
+    pub match_: MultiMatch,
     pub listeners: Vec<String>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(deny_unknown_fields)]
+pub struct MultiMatch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hosts: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Vec<String>>,
 }
 
 #[cfg(test)]

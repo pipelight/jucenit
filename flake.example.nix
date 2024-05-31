@@ -14,7 +14,7 @@
   };
 in {
   users.users.${cfg.user} = {
-    group = ${cfg.group};
+    group = "${cfg.group}";
     isSystemUser = true;
   };
   users.groups = {

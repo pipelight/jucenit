@@ -35,8 +35,6 @@ pub struct Action {
 pub struct Match {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub hosts: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uri: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -8,7 +8,28 @@ Internally uses [nginx unit](https://github.com/nginx/unit).
 ## Features
 
 - **Split** your configuration across multiple files in **Toml**.
-- **Automatic ssl** renewal.
+- **Easy ssl** renewal.
+
+## Roadmap
+
+Tooling:
+
+- Convenience commands:
+
+  - []: edit global configuration with favorite editor
+  - []: pretty print configuration chunk as json
+
+Tls/Ssl:
+
+- ACME Challenge support:
+
+  - [x]: http-01
+  - []: tls-ALPN-01
+
+- Automatic certificate renewal:
+
+  - []: make a daemon that watches certificates validity
+  - []: provide a template systemd unit
 
 ## Usage
 
@@ -22,7 +43,7 @@ Use it as a reverse-proxy.
 listeners = ["*:443"]
 
 [unit.match]
-host = "example.com"
+hosts = ["example.com"]
 
 [unit.action]
 proxy = "http://127.0.0.1:8888"
@@ -37,7 +58,7 @@ Or for file sharing
 listeners = ["*:443"]
 
 [unit.match]
-host = "test.com"
+hosts = ["test.com"]
 uri = "/files"
 
 [unit.action]
