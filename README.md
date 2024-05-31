@@ -46,7 +46,7 @@ share =[
 ]
 ```
 
-And any more possibilities at [nginx unit](https://github.com/nginx/unit).
+And many more possibilities at [nginx unit](https://github.com/nginx/unit).
 
 Update the global configuration with your configuration chunks.
 
@@ -82,7 +82,7 @@ It then pushes those file chunks through nginx-unit API.
 You first need a running instance of nginx-unit.
 See the [installation guide](https://unit.nginx.org/installation/):
 
-Add following configuration changes:
+Add the following configuration changes:
 
 ```sh
 unitd --control '127.0.0.1:8080'
@@ -92,13 +92,15 @@ So it listens on tcp port 8080 instead of defaut unix socket.
 
 ### with Cargo
 
-Install with cargo.
+Install on any linux distribution with cargo.
 
 ```sh
 cargo install --git https://github.com/pipelight/jucenit
 ```
 
 ### with Nixos
+
+Install on Nixos.
 
 First, add the flake url to your flakes **inputs**.
 
