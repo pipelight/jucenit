@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn get_from_toml_file() -> Result<()> {
-        let res = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let res = ConfigFile::load("../examples/jucenit.toml")?;
         println!("{:#?}", res);
         Ok(())
     }

@@ -8,4 +8,4 @@ pub mod nginx;
 mod ssl;
 pub use cast::{Action, Config as ConfigFile, Match};
 pub use juce::Config as JuceConfig;
-pub use nginx::{Config as NginxConfig, Nginx};
+pub use nginx::{CertificateStore, Config as NginxConfig, Nginx};

@@ -279,7 +279,25 @@ impl Letsencrypt {
 mod tests {
     use super::Letsencrypt;
     use super::*;
+    use crate::nginx::CertificateStore;
+    use crate::ConfigFile;
     use miette::Result;
+
+    /**
+     * Set a fresh testing environment
+     */
+    async fn set_testing_config() -> Result<()> {
+        // Clean config and certificate store
+        CertificateStore::clean().await?;
+        JuceConfig::set(&JuceConfig::default()).await?;
+
+        // Set new configuration
+        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let juce_config = JuceConfig::from(&config_file);
+        JuceConfig::set(&juce_config).await?;
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn set_local_creds() -> Result<()> {
@@ -295,6 +313,8 @@ mod tests {
 
     // #[tokio::test]
     async fn get_letsencrypt_cert() -> Result<()> {
+        set_testing_config().await?;
+
         let dns = "example.com";
         let account = letsencrypt_account().await?.clone();
         let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
@@ -304,6 +324,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_pebble_cert() -> Result<()> {
+        set_testing_config().await?;
+
         let dns = "example.com";
         let account = pebble_account().await?.clone();
         let res = Letsencrypt::get_cert_bundle(dns, &account).await?;

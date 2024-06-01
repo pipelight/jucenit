@@ -69,14 +69,36 @@ impl CertificateStore {
 
 #[cfg(test)]
 mod tests {
+    use crate::cast::Config as ConfigFile;
+    use crate::juce::Config as JuceConfig;
     use crate::nginx::CertificateStore;
     use crate::ssl;
     use crate::ssl::Fake as FakeCertificate;
     use crate::ssl::Letsencrypt as LetsencryptCertificate;
     use crate::NginxConfig;
+    use std::path::PathBuf;
 
     // Error Handling
     use miette::{Error, IntoDiagnostic, Result};
+
+    /**
+     * Set a fresh testing environment
+     */
+    async fn set_testing_config() -> Result<()> {
+        // Clean config and certificate store
+        CertificateStore::clean().await?;
+        JuceConfig::set(&JuceConfig::default()).await?;
+
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+        let config_file = ConfigFile::from_toml(path.to_str().unwrap())?;
+        // let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+
+        let juce_config = JuceConfig::from(&config_file);
+        JuceConfig::set(&juce_config).await?;
+
+        Ok(())
+    }
 
     /**
      * Generate a new certificate and upload it to nginx-unit
@@ -110,7 +132,6 @@ mod tests {
         );
         let bool = cert.validity.should_renew()?;
         println!("Should be renewed (<=3 weeks)?: {:?}", bool);
-
         Ok(())
     }
 }

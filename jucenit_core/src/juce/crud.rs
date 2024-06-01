@@ -251,14 +251,8 @@ mod tests {
     use crate::cast::Config as ConfigFile;
     use miette::Result;
     use serde::Deserialize;
+    use std::path::PathBuf;
 
-    #[tokio::test]
-    async fn set_global_config() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
-        let res = JuceConfig::from(&config_file);
-        JuceConfig::set(&res).await?;
-        Ok(())
-    }
     #[tokio::test]
     async fn deserialize_config() -> Result<()> {
         let res = JuceConfig::pull().await?;
@@ -266,8 +260,22 @@ mod tests {
         Ok(())
     }
     #[tokio::test]
+    async fn set_global_config() -> Result<()> {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config_file = ConfigFile::load(path.to_str().unwrap())?;
+
+        let res = JuceConfig::from(&config_file);
+        JuceConfig::set(&res).await?;
+        Ok(())
+    }
+    #[tokio::test]
     async fn push_config_chunk() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config_file = ConfigFile::load(path.to_str().unwrap())?;
         let config = JuceConfig::from(&config_file);
         let res = JuceConfig::push(&config).await?;
         Ok(())

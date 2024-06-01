@@ -123,6 +123,7 @@ mod tests {
     use crate::cast::Config as ConfigFile;
     use crate::juce::Config as JuceConfig;
     use crate::nginx::{Config as NginxConfig, Nginx};
+    use std::path::PathBuf;
     // Error handling
     use miette::Result;
 
@@ -142,7 +143,11 @@ mod tests {
 
     #[tokio::test]
     async fn set_config_from_file() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config_file = ConfigFile::from_toml(path.to_str().unwrap())?;
+
         let nginx_config = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
         let res = NginxConfig::set(&nginx_config).await?;
         println!("{:#?}", res);

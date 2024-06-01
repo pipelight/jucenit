@@ -117,8 +117,30 @@ mod tests {
 
     use assert_cmd::prelude::*; // Add methods on commands
     use miette::{IntoDiagnostic, Result};
+    use std::path::PathBuf;
     use std::process::Command; // Run commnds
 
+    use jucenit_core::{CertificateStore, ConfigFile, JuceConfig};
+
+    /**
+     * Set a fresh testing environment
+     */
+    async fn set_testing_config() -> Result<()> {
+        // Clean config and certificate store
+        CertificateStore::clean().await?;
+        JuceConfig::set(&JuceConfig::default()).await?;
+
+        // Set new configuration
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config_file = ConfigFile::from_toml(path.to_str().unwrap())?;
+
+        let juce_config = JuceConfig::from(&config_file);
+        JuceConfig::set(&juce_config).await?;
+
+        Ok(())
+    }
     // #[test]
     fn parse_command_line() -> Result<()> {
         let e = "jucenit --help";
@@ -128,8 +150,9 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn push_config_file() -> Result<()> {
+    #[tokio::test]
+    async fn push_config_file() -> Result<()> {
+        set_testing_config().await?;
         let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
         cmd.arg("push")
             .arg("--file")
@@ -137,8 +160,9 @@ mod tests {
         cmd.assert().success();
         Ok(())
     }
-    #[test]
-    fn renew_ssl() -> Result<()> {
+    #[tokio::test]
+    async fn renew_ssl() -> Result<()> {
+        set_testing_config().await?;
         let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
         cmd.arg("ssl").arg("--renew");
         cmd.assert().success();

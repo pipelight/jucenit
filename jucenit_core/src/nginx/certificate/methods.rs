@@ -119,11 +119,15 @@ mod tests {
     use crate::ssl;
     use crate::ssl::Fake as FakeCertificate;
     use crate::ssl::Letsencrypt as LetsencryptCertificate;
+    use std::path::PathBuf;
+
     use miette::Result;
 
     use crate::ConfigFile;
     use crate::JuceConfig;
     use crate::NginxConfig;
+
+    use serial_test::serial;
 
     /**
      * Set a fresh testing environment
@@ -134,7 +138,10 @@ mod tests {
         JuceConfig::set(&JuceConfig::default()).await?;
 
         // Set new configuration
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config_file = ConfigFile::load(path.to_str().unwrap())?;
         let juce_config = JuceConfig::from(&config_file);
         JuceConfig::set(&juce_config).await?;
 
@@ -179,7 +186,9 @@ mod tests {
         println!("{:#?}", res);
         Ok(())
     }
+
     #[tokio::test]
+    #[serial]
     async fn hydrate_cert_store() -> Result<()> {
         set_testing_config().await?;
 

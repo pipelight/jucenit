@@ -51,6 +51,7 @@ impl From<&Vec<Match>> for MultiMatch {
 mod tests {
     use super::{ConfigFile, JuceConfig};
     use miette::Result;
+    use serial_test::serial;
 
     // Provide a default config
     async fn set_global_config() -> Result<()> {
@@ -61,19 +62,25 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn from_juce_lock_to_config_file_tml() -> Result<()> {
         set_global_config().await?;
         let lock = JuceConfig::pull().await?;
         let res = ConfigFile::to_toml(&ConfigFile::from(&lock))?;
+        // Clean
+        JuceConfig::set(&JuceConfig::default()).await?;
         println!("{}", res);
         Ok(())
     }
     #[tokio::test]
+    #[serial]
     async fn from_juce_lock_to_config_file_yml() -> Result<()> {
         set_global_config().await?;
         let lock = JuceConfig::pull().await?;
         let res = ConfigFile::to_yaml(&ConfigFile::from(&lock))?;
         println!("{}", res);
+        // Clean
+        JuceConfig::set(&JuceConfig::default()).await?;
         Ok(())
     }
 }
