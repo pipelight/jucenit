@@ -1,4 +1,4 @@
-use acme2::gen_rsa_private_key;
+use acme2::{gen_rsa_private_key, Authorization};
 use acme2::{
     Account, AccountBuilder, AuthorizationStatus, Challenge, ChallengeStatus, Csr, Directory,
     DirectoryBuilder, OrderBuilder, OrderStatus,
@@ -58,11 +58,9 @@ pub async fn letsencrypt_account() -> Result<Arc<Account>> {
 }
 
 /**
-* Create an nginx-unit match to serve the challenge key file.
-* A file at `https://example.com/.well-known/${challenge.token}`
-* with the content of `challenge.key_authorization()??`.
+* Create a self-signed certificate to serve domain and resolve challenge.
 */
-fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Match, JuceUnit)> {
+fn make_jucenit_tls_alpn_challenge_config(dns: &str, challenge: &Challenge) -> Result<String> {
     // Challenge ports
     let http_port = 80;
     let tls_port = 443;
@@ -77,7 +75,40 @@ fn make_jucenit_challenge_config(dns: &str, challenge: &Challenge) -> Result<(Ma
     };
     let unit = JuceUnit {
         id: Some(format!("challenge_{}", dns)),
-        kind: UnitKind::SslChallenge,
+        kind: UnitKind::HttpChallenge,
+        listeners: vec![format!("*:{}", http_port)],
+        action: Some(Action {
+            share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
+            ..Action::default()
+        }),
+    };
+    let cert = String::new();
+    Ok(cert)
+}
+/**
+* Create an nginx-unit match to serve the challenge key file.
+* A file at `https://example.com/.well-known/${challenge.token}`
+* with the content of `challenge.key_authorization()??`.
+*/
+fn make_jucenit_http_challenge_config(
+    dns: &str,
+    challenge: &Challenge,
+) -> Result<(Match, JuceUnit)> {
+    // Challenge ports
+    let http_port = 80;
+    let tls_port = 443;
+    // Update nginx-unit config
+    let match_ = Match {
+        uri: Some(format!(
+            "/.well-known/acme-challenge/{}",
+            challenge.token.clone().unwrap()
+        )),
+        host: Some(dns.to_owned()),
+        ..Match::default()
+    };
+    let unit = JuceUnit {
+        id: Some(format!("challenge_{}", dns)),
+        kind: UnitKind::HttpChallenge,
         listeners: vec![format!("*:{}", http_port)],
         action: Some(Action {
             share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
@@ -135,28 +166,13 @@ impl Letsencrypt {
         // Get the list of needed authorizations for this order.
         let authorizations = order.authorizations().await.into_diagnostic()?;
         for auth in authorizations {
-            // Get an http-01 challenge for this authorization
+            // Get an tls-alpn-01 challenge
+            // if let Some(challenge) = auth.get_challenge("tls-alpn-01") {
+            //     Self::tls_alpn_challenge(dns, auth, &challenge).await?;
+            // }
+            // Get an http-01 challenge
             if let Some(challenge) = auth.get_challenge("http-01") {
-                // Create route to challenge key file
-                set_challenge_key_file(dns, &challenge)?;
-                let (match_, unit) = make_jucenit_challenge_config(dns, &challenge)?;
-                JuceConfig::add_unit((match_.clone(), unit)).await?;
-
-                let challenge = challenge.validate().await.into_diagnostic()?;
-                let challenge = challenge
-                    .wait_done(Duration::from_secs(5), 10)
-                    .await
-                    .into_diagnostic()?;
-                assert_eq!(challenge.status, ChallengeStatus::Valid);
-                let authorization = auth
-                    .wait_done(Duration::from_secs(5), 10)
-                    .await
-                    .into_diagnostic()?;
-                assert_eq!(authorization.status, AuthorizationStatus::Valid);
-
-                // Delete route to challenge key file
-                del_challenge_key_file(dns, &challenge)?;
-                JuceConfig::del_unit(match_.clone()).await?;
+                Self::http_challenge(dns, auth, &challenge).await?;
             }
         }
 
@@ -196,6 +212,66 @@ impl Letsencrypt {
         }
         bundle += &private_key;
         Ok(bundle)
+    }
+    async fn http_challenge(dns: &str, auth: Authorization, challenge: &Challenge) -> Result<()> {
+        // Create route to challenge key file
+        set_challenge_key_file(dns, &challenge)?;
+        let (match_, unit) = make_jucenit_http_challenge_config(dns, &challenge)?;
+        JuceConfig::add_unit((match_.clone(), unit)).await?;
+
+        let challenge = challenge.validate().await.into_diagnostic()?;
+        let challenge = challenge
+            .wait_done(Duration::from_secs(5), 10)
+            .await
+            .into_diagnostic()?;
+        assert_eq!(challenge.status, ChallengeStatus::Valid);
+
+        // Delete route to challenge key file
+        del_challenge_key_file(dns, &challenge)?;
+        JuceConfig::del_unit(match_.clone()).await?;
+
+        let authorization = auth
+            .wait_done(Duration::from_secs(5), 10)
+            .await
+            .into_diagnostic()?;
+        assert_eq!(authorization.status, AuthorizationStatus::Valid);
+        Ok(())
+    }
+    /**
+     * Warning: Online ressources are relatively poor on how to implement this challenge.
+     * Refer direcly to the standard at:
+     * https://datatracker.ietf.org/doc/html/rfc8737
+     * and read the comments
+     */
+    async fn tls_alpn_challenge(
+        dns: &str,
+        auth: Authorization,
+        challenge: &Challenge,
+    ) -> Result<()> {
+        // Create tls cert with challenge info
+        set_challenge_key_file(dns, &challenge)?;
+
+        let bundle = make_jucenit_tls_alpn_challenge_config(dns, &challenge)?;
+        // JuceConfig::add_unit((match_.clone(), unit)).await?;
+
+        let challenge = challenge.validate().await.into_diagnostic()?;
+        let challenge = challenge
+            .wait_done(Duration::from_secs(5), 10)
+            .await
+            .into_diagnostic()?;
+        assert_eq!(challenge.status, ChallengeStatus::Valid);
+
+        // Delete route to challenge key file
+        //
+        // del_challenge_key_file(dns, &challenge)?;
+        // JuceConfig::del_unit(match_.clone()).await?;
+
+        let authorization = auth
+            .wait_done(Duration::from_secs(5), 10)
+            .await
+            .into_diagnostic()?;
+        assert_eq!(authorization.status, AuthorizationStatus::Valid);
+        Ok(())
     }
 }
 

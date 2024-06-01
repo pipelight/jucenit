@@ -110,25 +110,6 @@ impl CertificateStore {
         let res = CertificateStore::add(dns, bundle).await?;
         Ok(res)
     }
-    // /**
-    //  * Bulk update listeners with every certificates in the store
-    //  */
-    // pub async fn update_listeners() -> Result<()> {
-    //     let certificates = JuceConfig::get_hosts().await?;
-    //     // let certificates = CertificateStore::get_all().await?;
-    //     // let dns_list: Vec<String> = certificates.into_keys().collect();
-    //
-    //     let mut config = NginxConfig::get().await?;
-    //     for (_, val) in config.listeners.iter_mut() {
-    //         val.tls = Some(Tls {
-    //             // certificate: dns_list.clone(),
-    //             certificate: certificates.clone(),
-    //         });
-    //     }
-    //     println!("{:#?}", &config);
-    //     let res = NginxConfig::set(&config).await?;
-    //     Ok(())
-    // }
 }
 
 #[cfg(test)]

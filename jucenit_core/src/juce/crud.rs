@@ -74,7 +74,7 @@ impl Config {
      */
     pub async fn add_unit((match_, unit): (Match, Unit)) -> Result<()> {
         let mut main = Self::pull().await?;
-        if unit.kind == UnitKind::SslChallenge {
+        if unit.kind == UnitKind::HttpChallenge {
             // Clean unremoved challenges assossiated to host if any.
             for k in main.units.clone().keys() {
                 if let Some(uri) = &k.uri {
@@ -240,7 +240,8 @@ pub struct Unit {
 pub enum UnitKind {
     #[default]
     Managed,
-    SslChallenge,
+    HttpChallenge,
+    TlsAlpnChallenge,
     Unmanaged,
 }
 

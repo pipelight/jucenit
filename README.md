@@ -136,7 +136,7 @@ Convenience commands:
 
 - [x]: edit global configuration with favorite editor
 - [ ]: "push -d" to remove a chunk from global configuration
-- [ ]: pretty print configuration chunk as json
+- [ ]: allow passing a string to "jucenit push"
 
 Tls/Ssl:
 
@@ -147,5 +147,6 @@ ACME Challenge support:
 
 Automatic certificate renewal:
 
+- [ ]: parallel certificate renewal
 - [ ]: make a daemon that watches certificates validity
 - [ ]: provide a template systemd unit

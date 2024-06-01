@@ -9,7 +9,7 @@ impl From<&JuceConfig> for ConfigFile {
         let juce_config = juce_config.clone();
 
         // Loop through JuceUnits and set Unit(actions) as key and Match as value
-        // This regroups Units if they have the same match.
+        // This groups matchs(value) leading to the same action(key).
         let mut units_by_action: IndexMap<JuceUnit, Vec<Match>> = IndexMap::new();
         for (match_, unit) in juce_config.units {
             match units_by_action.get_mut(&unit) {
@@ -54,7 +54,7 @@ mod tests {
 
     // Provide a default config
     async fn set_global_config() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let config_file = ConfigFile::from_toml("../examples/jucenit.test_reverse_cast.toml")?;
         let res = JuceConfig::from(&config_file);
         JuceConfig::set(&res).await?;
         Ok(())
