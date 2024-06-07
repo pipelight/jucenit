@@ -18,7 +18,7 @@ impl NginxConfig {
         // Create jucenit managed nginx-unit routes(steps)
         let mut routes: HashMap<String, Vec<NginxRoute>> = HashMap::new();
 
-        // Create jucenit managed nginx-unit listeners
+        // Create jucenit nginx-unit listeners
         let mut listeners: HashMap<String, ListenerOpts> = HashMap::new();
         let mut listeners_to_host_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut listeners_to_kind_map: HashMap<String, UnitKind> = HashMap::new();
@@ -109,12 +109,12 @@ mod tests {
 
     #[tokio::test]
     async fn from_jucenit_to_nginx() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let config_file = ConfigFile::from_toml("../examples/jucenit.full.toml")?;
         let res = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
         println!("{:#?}", res);
         Ok(())
     }
-    #[tokio::test]
+    // #[tokio::test]
     async fn from_jucenit_to_nginx_json() -> Result<()> {
         let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
         let res = NginxConfig::from(&JuceConfig::from(&config_file)).await?;

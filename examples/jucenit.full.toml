@@ -16,3 +16,18 @@ hosts = ["test.com"]
 
 [unit.action]
 proxy = "http://127.0.0.1:8333"
+
+# Mail
+[[unit]]
+listeners = ["*:587"]
+[unit.match]
+hosts = ["example.com", "test.com"]
+[unit.action]
+proxy = "http://127.0.0.1:9080"
+
+[[unit]]
+listeners = ["*:993"]
+[unit.match]
+hosts = ["example.com", "test.com"]
+[unit.action]
+proxy = "http://127.0.0.1:9080"

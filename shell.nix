@@ -14,6 +14,10 @@ pkgs.mkShell rec {
     # rustfmt # Formatter
     # clippy # Linter
   ];
+
+  # SeaOrm Sqlite database
+  DATABASE_URL = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
+
   RUSTC_VERSION = pkgs.lib.readFile ./rust-toolchain.toml;
   # https://github.com/rust-lang/rust-bindgen#environment-variables
   LIBCLANG_PATH = pkgs.lib.makeLibraryPath [pkgs.llvmPackages_latest.libclang.lib];

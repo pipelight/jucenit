@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["cli", "jucenit", "jucenit_core", "utils"]
+members = ["cli", "entity", "jucenit", "jucenit_core", "utils", "migration"]

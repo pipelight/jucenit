@@ -8,6 +8,7 @@
 //! that is, in the end, lossy converted to a nginx-unit configuration.
 //!
 mod crud;
+mod database;
 mod from;
 
 // Reexports

@@ -30,6 +30,11 @@ futures = "0.3.30"
 rayon = "1.10.0"
 indexmap = { version = "2.2.6", features = ["serde", "rayon"] }
 ron = { version = "0.8.1", features = ["indexmap"] }
+sea-orm = { version = "0.12.15", features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+  "macros",
+] }
 
 [dev-dependencies]
 serial_test = "3.1.1"

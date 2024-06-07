@@ -3,6 +3,7 @@ use crate::{Action, Match};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 // File
+use crate::nginx::Config as NginxConfig;
 use std::env;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -11,7 +12,6 @@ use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 // Error Handling
-use crate::nginx::Config as NginxConfig;
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 // Global vars
@@ -244,6 +244,14 @@ pub enum UnitKind {
     TlsAlpnChallenge,
     Unmanaged,
 }
+
+// #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// pub struct Match {
+//     pub host: Option<String>,
+//     pub uri: Option<String>,
+//     pub source: Option<Vec<String>>,
+//     pub listener: String,
+// }
 
 #[cfg(test)]
 mod tests {
