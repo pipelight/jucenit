@@ -17,23 +17,25 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // todo!();
+        // Junction table Match_Listener
         manager
             .create_table(
                 Table::create()
-                    .table(Host::Table)
+                    .table(MatchListener::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Host::Id)
+                        ColumnDef::new(MatchListener::Id)
                             .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Host::Domain).string())
+                    .col(ColumnDef::new(MatchListener::MatchId).integer())
+                    .col(ColumnDef::new(MatchListener::ListenerId).integer())
                     .to_owned(),
             )
             .await?;
+        // Match
         manager
             .create_table(
                 Table::create()
@@ -51,6 +53,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+        // Listener
         manager
             .create_table(
                 Table::create()
@@ -65,6 +68,22 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Listener::IpSocket).string())
                     // .col(ColumnDef::new(Listener::Tls).string())
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_table(
+                Table::create()
+                    .table(Host::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Host::Id)
+                            .integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Host::Domain).string())
                     .to_owned(),
             )
             .await?;
@@ -102,18 +121,29 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(Action::Table).to_owned())
             .await?;
+        // Pivot/Juction tables
+        manager
+            .drop_table(Table::drop().table(MatchListener::Table).to_owned())
+            .await?;
         Ok(())
     }
 }
 
-#[derive(DeriveIden)]
+#[derive(DeriveIden, Debug)]
+pub enum MatchListener {
+    Table,
+    Id,
+    MatchId,
+    ListenerId,
+}
+#[derive(DeriveIden, Debug)]
 pub enum Host {
     Table, // special attribute
     Id,
     Domain, // Host domain name (ex: "example.com")
 }
 
-#[derive(DeriveIden)]
+#[derive(DeriveIden, Debug)]
 pub enum Listener {
     Table, // special attribute
     Id,
@@ -121,13 +151,13 @@ pub enum Listener {
     Tls,
 }
 
-#[derive(DeriveIden)]
+#[derive(DeriveIden, Debug)]
 pub enum Match {
     Table, // special attribute
     Id,
     Uri, // Uri path (ex: "/rust-lang/rust/issues")
     Source,
-    Category, // Has many hosts [hosts]
+    MatchCategory, // Has many hosts [hosts]
 }
 #[derive(Iden, EnumIter)]
 pub enum MatchCategory {
@@ -159,29 +189,6 @@ mod tests {
             .await
             .into_diagnostic()?;
         Migrator::up(&connection, None).await.into_diagnostic()?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn seed_db() -> Result<()> {
-        // Get struct from config
-        let toml = "
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            hosts = ['test.com']
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-        ";
-        let config = ConfigFile::from_toml_str(toml)?;
-        let unit = config.unit.first().unwrap();
-
-        let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-        let connection = sea_orm::Database::connect(database_url)
-            .await
-            .into_diagnostic()?;
         Ok(())
     }
 }

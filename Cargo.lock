@@ -2200,6 +2200,7 @@ dependencies = [
  "acme2",
  "chrono",
  "colored",
+ "entity",
  "futures",
  "http",
  "indexmap",
