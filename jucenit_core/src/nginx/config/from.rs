@@ -109,14 +109,14 @@ mod tests {
 
     #[tokio::test]
     async fn from_jucenit_to_nginx() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.full.toml")?;
+        let config_file = ConfigFile::load("../examples/jucenit.full.toml")?;
         let res = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
         println!("{:#?}", res);
         Ok(())
     }
     // #[tokio::test]
     async fn from_jucenit_to_nginx_json() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let config_file = ConfigFile::load("../examples/jucenit.toml")?;
         let res = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
         let res = serde_json::to_string_pretty(&res).into_diagnostic()?;
         println!("{}", res);

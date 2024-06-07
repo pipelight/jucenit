@@ -7,5 +7,5 @@ pub mod mapping;
 pub mod nginx;
 mod ssl;
 pub use cast::{Action, Config as ConfigFile, Match};
-pub use juce::Config as JuceConfig;
+pub use juce::{Config as JuceConfig, Unit as JuceUnit};
 pub use nginx::{CertificateStore, Config as NginxConfig, Nginx};

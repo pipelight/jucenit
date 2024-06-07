@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn convert_config_file() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let config_file = ConfigFile::load("../examples/jucenit.toml")?;
         let res = JuceConfig::from(&config_file);
         println!("{:#?}", res);
         Ok(())

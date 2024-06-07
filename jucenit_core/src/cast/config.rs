@@ -52,8 +52,8 @@ impl Config {
 
         let file_type = FileType::from(extension);
         let config = match file_type {
-            FileType::Toml | FileType::Tml => Config::from_toml(file_path)?,
-            FileType::Yaml | FileType::Yml => Config::from_yaml(file_path)?,
+            FileType::Toml | FileType::Tml => Config::from_toml_file(file_path)?,
+            FileType::Yaml | FileType::Yml => Config::from_yaml_file(file_path)?,
             _ => {
                 let msg = format!("File type is unknown");
                 return Err(Error::msg(msg));
@@ -64,13 +64,26 @@ impl Config {
     /**
     Returns a jucenit configuration from a provided toml file path.
     */
-    pub fn from_toml(file_path: &str) -> Result<Config> {
+    pub fn from_toml_file(file_path: &str) -> Result<Config> {
         let tml = fs::read_to_string(file_path).into_diagnostic()?;
         let res = toml::from_str::<Config>(&tml);
         match res {
             Ok(res) => Ok(res),
             Err(e) => {
                 let err = TomlError::new(e, &tml);
+                Err(err.into())
+            }
+        }
+    }
+    /**
+    Returns a jucenit configuration from a provided toml string.
+    */
+    pub fn from_toml_str(toml: &str) -> Result<Config> {
+        let res = toml::from_str::<Config>(&toml);
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                let err = TomlError::new(e, toml);
                 Err(err.into())
             }
         }
@@ -82,7 +95,7 @@ impl Config {
     /**
      * Returns a jucenit configuration from a provided yaml file path.
      */
-    pub fn from_yaml(file_path: &str) -> Result<Config> {
+    pub fn from_yaml_file(file_path: &str) -> Result<Config> {
         let yml = fs::read_to_string(file_path).into_diagnostic()?;
         let res = serde_yaml::from_str::<Config>(&yml);
         match res {
@@ -127,7 +140,23 @@ mod tests {
 
     #[test]
     fn get_from_toml_file() -> Result<()> {
-        let res = ConfigFile::load("../examples/jucenit.toml")?;
+        let res = ConfigFile::from_toml_file("../examples/jucenit.toml")?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[test]
+    fn get_from_toml_string() -> Result<()> {
+        let toml = "
+            [[unit]]
+            listeners = ['*:443']
+
+            [unit.match]
+            hosts = ['test.com']
+
+            [unit.action]
+            proxy = 'http://127.0.0.1:8333'
+        ";
+        let res = ConfigFile::from_toml_str(toml)?;
         println!("{:#?}", res);
         Ok(())
     }

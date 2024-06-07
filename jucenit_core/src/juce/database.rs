@@ -9,10 +9,8 @@ use sea_orm::{Database, DatabaseConnection};
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 pub async fn connect() -> Result<()> {
-    let db: DatabaseConnection =
-        Database::connect("sqlite:////var/spool/jucenit/config.sqlite?mode=rwc")
-            .await
-            .into_diagnostic()?;
+    let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
+    let db: DatabaseConnection = Database::connect(database_url).await.into_diagnostic()?;
     Ok(())
 }
 // #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, DeriveEntityModel)]

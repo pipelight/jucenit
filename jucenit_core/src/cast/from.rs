@@ -55,7 +55,7 @@ mod tests {
 
     // Provide a default config
     async fn set_global_config() -> Result<()> {
-        let config_file = ConfigFile::from_toml("../examples/jucenit.test_reverse_cast.toml")?;
+        let config_file = ConfigFile::load("../examples/jucenit.test_reverse_cast.toml")?;
         let res = JuceConfig::from(&config_file);
         JuceConfig::set(&res).await?;
         Ok(())

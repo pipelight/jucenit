@@ -292,7 +292,7 @@ mod tests {
         JuceConfig::set(&JuceConfig::default()).await?;
 
         // Set new configuration
-        let config_file = ConfigFile::from_toml("../examples/jucenit.toml")?;
+        let config_file = ConfigFile::load("../examples/jucenit.toml")?;
         let juce_config = JuceConfig::from(&config_file);
         JuceConfig::set(&juce_config).await?;
 

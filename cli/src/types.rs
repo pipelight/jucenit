@@ -134,7 +134,7 @@ mod tests {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
 
-        let config_file = ConfigFile::from_toml(path.to_str().unwrap())?;
+        let config_file = ConfigFile::load(path.to_str().unwrap())?;
 
         let juce_config = JuceConfig::from(&config_file);
         JuceConfig::set(&juce_config).await?;
