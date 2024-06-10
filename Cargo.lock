@@ -1009,7 +1009,12 @@ checksum = "c34f04666d835ff5d62e058c3995147c06f42fe86ff053337632bca83e42702d"
 name = "entity"
 version = "0.1.0"
 dependencies = [
+ "async-std",
+ "miette 7.2.0",
  "sea-orm",
+ "sea-orm-migration",
+ "strum 0.26.2",
+ "tokio",
 ]
 
 [[package]]

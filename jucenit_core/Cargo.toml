@@ -35,6 +35,7 @@ sea-orm = { version = "0.12.15", features = [
   "runtime-tokio-rustls",
   "sqlx-sqlite",
   "macros",
+  "mock",
 ] }
 
 [dev-dependencies]

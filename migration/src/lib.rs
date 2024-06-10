@@ -1,6 +1,5 @@
 pub use sea_orm_migration::prelude::*;
 
-mod from;
 mod m20240606_110915_create_table;
 
 pub use m20240606_110915_create_table::*;

@@ -1,3 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["cli", "entity", "jucenit", "jucenit_core", "utils", "migration"]
+members = [
+  "cli",          # command line definition
+  "jucenit",      # binary entrypoint
+  "jucenit_core", # requests to nginx API
+  "utils",        # fs,proc manipulation
+  "migration",    # generate database
+  "entity",       # database
+]

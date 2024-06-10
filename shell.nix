@@ -17,6 +17,13 @@ pkgs.mkShell rec {
 
   # SeaOrm Sqlite database
   DATABASE_URL = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
+  DBEE_CONNECTIONS = "[
+    {
+      \"name\": \"jucenit_db\",
+      \"type\": \"sqlite\",
+      \"url\": \"/var/spool/jucenit/config.sqlite?mode=rwc\"
+    }
+  ]";
 
   RUSTC_VERSION = pkgs.lib.readFile ./rust-toolchain.toml;
   # https://github.com/rust-lang/rust-bindgen#environment-variables

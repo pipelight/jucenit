@@ -35,21 +35,45 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        // Match
+        // Junction table Match_Host
         manager
             .create_table(
                 Table::create()
-                    .table(Match::Table)
+                    .table(MatchHost::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Match::Id)
+                        ColumnDef::new(MatchHost::Id)
                             .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Match::Uri).string())
-                    .col(ColumnDef::new(Match::Source).string())
+                    .col(ColumnDef::new(MatchHost::MatchId).integer())
+                    .col(ColumnDef::new(MatchHost::HostId).integer())
+                    .to_owned(),
+            )
+            .await?;
+        // Match
+        manager
+            .create_table(
+                Table::create()
+                    .table(NgMatch::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(NgMatch::Id)
+                            .integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(NgMatch::ActionId).integer())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-match-action_id")
+                            .from(NgMatch::Table, NgMatch::ActionId)
+                            .to(Action::Table, Action::Id),
+                    )
+                    .col(ColumnDef::new(NgMatch::RawParams).json())
                     .to_owned(),
             )
             .await?;
@@ -71,6 +95,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+        // Host
         manager
             .create_table(
                 Table::create()
@@ -83,10 +108,11 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Host::Domain).string())
+                    .col(ColumnDef::new(Host::Domain).string().not_null())
                     .to_owned(),
             )
             .await?;
+        // Action
         manager
             .create_table(
                 Table::create()
@@ -99,8 +125,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Action::Proxy).string())
-                    .col(ColumnDef::new(Action::Share).string())
+                    .col(ColumnDef::new(Action::RawParams).json())
                     .to_owned(),
             )
             .await?;
@@ -113,7 +138,7 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(Host::Table).to_owned())
             .await?;
         manager
-            .drop_table(Table::drop().table(Match::Table).to_owned())
+            .drop_table(Table::drop().table(NgMatch::Table).to_owned())
             .await?;
         manager
             .drop_table(Table::drop().table(Listener::Table).to_owned())
@@ -125,6 +150,9 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(MatchListener::Table).to_owned())
             .await?;
+        manager
+            .drop_table(Table::drop().table(MatchHost::Table).to_owned())
+            .await?;
         Ok(())
     }
 }
@@ -135,6 +163,13 @@ pub enum MatchListener {
     Id,
     MatchId,
     ListenerId,
+}
+#[derive(DeriveIden, Debug)]
+pub enum MatchHost {
+    Table,
+    Id,
+    MatchId,
+    HostId,
 }
 #[derive(DeriveIden, Debug)]
 pub enum Host {
@@ -152,12 +187,12 @@ pub enum Listener {
 }
 
 #[derive(DeriveIden, Debug)]
-pub enum Match {
+pub enum NgMatch {
     Table, // special attribute
     Id,
-    Uri, // Uri path (ex: "/rust-lang/rust/issues")
-    Source,
-    MatchCategory, // Has many hosts [hosts]
+    RawParams,
+    // Relations
+    ActionId,
 }
 #[derive(Iden, EnumIter)]
 pub enum MatchCategory {
@@ -171,8 +206,7 @@ pub enum MatchCategory {
 pub enum Action {
     Table, // special attribute
     Id,
-    Proxy,
-    Share,
+    RawParams,
 }
 
 #[cfg(test)]
@@ -188,7 +222,7 @@ mod tests {
         let connection = sea_orm::Database::connect(database_url)
             .await
             .into_diagnostic()?;
-        Migrator::up(&connection, None).await.into_diagnostic()?;
+        Migrator::fresh(&connection).await.into_diagnostic()?;
         Ok(())
     }
 }
