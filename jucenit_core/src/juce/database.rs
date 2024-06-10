@@ -16,28 +16,33 @@ pub async fn connect() -> Result<DatabaseConnection> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::ConfigFile;
-    use entity::*;
-    use miette::Result;
-    use sea_orm::{prelude::*, MockDatabase};
+    use super::connect;
+    use crate::{ConfigFile, Match};
+    use entity::{prelude::*, *};
+    use miette::{IntoDiagnostic, Result};
+    use sea_orm::{prelude::*, ActiveValue, MockDatabase};
 
     async fn prepare_mock_db() -> Result<DatabaseConnection> {
         let db: DatabaseConnection = MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
+            // Add listeners
             .append_query_results([vec![
                 listener::Model {
                     id: 1,
-                    ip_socket: Some("*:443".to_owned()),
+                    ip_socket: "*:443".to_owned(),
+                    tls: None,
                 },
                 listener::Model {
                     id: 2,
-                    ip_socket: Some("*:587".to_owned()),
+                    ip_socket: "*:587".to_owned(),
+                    tls: None,
                 },
                 listener::Model {
                     id: 3,
-                    ip_socket: Some("*:993".to_owned()),
+                    ip_socket: "*:993".to_owned(),
+                    tls: None,
                 },
             ]])
+            // Add actions
             .append_query_results([vec![
                 action::Model {
                     id: 1,
@@ -58,11 +63,20 @@ mod tests {
                     ),
                 },
             ]])
-            .append_query_results([vec![ng_match::Model {
-                id: 1,
-                action_id: Some(1),
-                raw_params: None,
-            }]])
+            // Add nginx match conditions/parameters
+            .append_query_results([vec![
+                ng_match::Model {
+                    id: 1,
+                    action_id: Some(1),
+                    raw_params: None,
+                },
+                ng_match::Model {
+                    id: 2,
+                    action_id: Some(2),
+                    raw_params: None,
+                },
+            ]])
+            // Add host names
             .append_query_results([vec![
                 host::Model {
                     id: 1,
@@ -73,6 +87,7 @@ mod tests {
                     domain: "example.com".to_owned(),
                 },
             ]])
+            // Link host to match
             .append_query_results([vec![
                 match_host::Model {
                     id: 1,
@@ -82,7 +97,25 @@ mod tests {
                 match_host::Model {
                     id: 2,
                     host_id: Some(2),
+                    match_id: Some(2),
+                },
+            ]])
+            // Link listener to match
+            .append_query_results([vec![
+                match_listener::Model {
+                    id: 1,
                     match_id: Some(1),
+                    listener_id: Some(1),
+                },
+                match_listener::Model {
+                    id: 2,
+                    match_id: Some(2),
+                    listener_id: Some(2),
+                },
+                match_listener::Model {
+                    id: 3,
+                    match_id: Some(1),
+                    listener_id: Some(3),
                 },
             ]])
             .into_connection();
@@ -97,7 +130,36 @@ mod tests {
 
     #[tokio::test]
     async fn query_mock_db() -> Result<()> {
-        connect().await?;
+        let db = prepare_mock_db().await?;
+
+        // Test db querying and joint
+        let all_listeners: Vec<listener::Model> =
+            Listener::find().all(&db).await.into_diagnostic()?;
+        assert_eq!(
+            all_listeners,
+            vec![
+                listener::Model {
+                    id: 1,
+                    ip_socket: "*:443".to_owned(),
+                    tls: None
+                },
+                listener::Model {
+                    id: 2,
+                    ip_socket: "*:587".to_owned(),
+                    tls: None
+                },
+                listener::Model {
+                    id: 3,
+                    ip_socket: "*:993".to_owned(),
+                    tls: None
+                },
+            ]
+        );
+        let listeners_w_match: Vec<listener::Model> = Listener::find()
+            .left_join(Match)
+            .all(&db)
+            .await
+            .into_diagnostic()?;
         Ok(())
     }
 
@@ -111,7 +173,7 @@ mod tests {
         Ok(())
     }
 
-    // #[tokio::test]
+    #[tokio::test]
     async fn seed_db() -> Result<()> {
         // Get struct from config
         let toml = "
@@ -127,10 +189,50 @@ mod tests {
         let config = ConfigFile::from_toml_str(toml)?;
         let unit = config.unit.first().unwrap();
 
-        let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-        let connection = sea_orm::Database::connect(database_url)
+        let db = connect().await?;
+
+        let mut listeners = vec![];
+
+        for l in &unit.listeners {
+            let listener = listener::ActiveModel {
+                ip_socket: ActiveValue::Set(l.to_owned()),
+                ..Default::default()
+            };
+            listeners.push(listener);
+        }
+
+        // Host::insert()
+
+        let mut match_params = unit.match_.clone();
+        match_params.hosts = None;
+        NgMatch::insert(ng_match::ActiveModel {
+            raw_params: ActiveValue::Set(Some(
+                serde_json::to_value(match_params)
+                    .into_diagnostic()?
+                    .to_string(),
+            )),
+            ..Default::default()
+        })
+        .exec(&db)
+        .await
+        .into_diagnostic()?;
+
+        // Insert action and join
+        Action::insert(action::ActiveModel {
+            raw_params: ActiveValue::Set(Some(
+                serde_json::to_value(unit.action.clone())
+                    .into_diagnostic()?
+                    .to_string(),
+            )),
+
+            ..Default::default()
+        });
+
+        Listener::insert_many(listeners)
+            .exec(&db)
             .await
             .into_diagnostic()?;
+
         Ok(())
     }
 }

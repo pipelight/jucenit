@@ -7,12 +7,13 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
+    #[sea_orm(unique)]
     pub raw_params: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::ng_match::Entity")]
+    #[sea_orm(has_one = "super::ng_match::Entity")]
     NgMatch,
 }
 

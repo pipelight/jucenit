@@ -66,7 +66,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(NgMatch::ActionId).integer())
+                    .col(ColumnDef::new(NgMatch::ActionId).integer().unique_key())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-match-action_id")
@@ -90,8 +90,13 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Listener::IpSocket).string())
-                    // .col(ColumnDef::new(Listener::Tls).string())
+                    .col(
+                        ColumnDef::new(Listener::IpSocket)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(Listener::Tls).json())
                     .to_owned(),
             )
             .await?;
@@ -108,7 +113,12 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Host::Domain).string().not_null())
+                    .col(
+                        ColumnDef::new(Host::Domain)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -125,7 +135,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Action::RawParams).json())
+                    .col(ColumnDef::new(Action::RawParams).json().unique_key())
                     .to_owned(),
             )
             .await?;
