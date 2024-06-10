@@ -12,6 +12,35 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::host::Entity",
+        from = "Column::HostId",
+        to = "super::host::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Host,
+    #[sea_orm(
+        belongs_to = "super::ng_match::Entity",
+        from = "Column::MatchId",
+        to = "super::ng_match::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    NgMatch,
+}
+
+impl Related<super::host::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Host.def()
+    }
+}
+
+impl Related<super::ng_match::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::NgMatch.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

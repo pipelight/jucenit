@@ -32,6 +32,20 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(MatchListener::MatchId).integer())
                     .col(ColumnDef::new(MatchListener::ListenerId).integer())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(MatchListener::Table, MatchListener::MatchId)
+                            .to(NgMatch::Table, NgMatch::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(MatchListener::Table, MatchListener::ListenerId)
+                            .to(Listener::Table, Listener::Id)
+                            .on_update(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -50,6 +64,20 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(MatchHost::MatchId).integer())
                     .col(ColumnDef::new(MatchHost::HostId).integer())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(MatchHost::Table, MatchHost::MatchId)
+                            .to(NgMatch::Table, NgMatch::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(MatchHost::Table, MatchHost::HostId)
+                            .to(Host::Table, Host::Id)
+                            .on_update(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;

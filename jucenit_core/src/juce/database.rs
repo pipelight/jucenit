@@ -155,11 +155,16 @@ mod tests {
                 },
             ]
         );
-        let listeners_w_match: Vec<listener::Model> = Listener::find()
-            .left_join(Match)
+        let a_listener: Option<listener::Model> =
+            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
+        let a_listener: listener::Model = a_listener.unwrap();
+
+        let matches: Vec<(listener::Model, Vec<ng_match::Model>)> = Listener::find()
+            .find_with_related(NgMatch)
             .all(&db)
             .await
             .into_diagnostic()?;
+
         Ok(())
     }
 

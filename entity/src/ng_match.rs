@@ -22,11 +22,27 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     Action,
+    #[sea_orm(has_many = "super::match_host::Entity")]
+    MatchHost,
+    #[sea_orm(has_many = "super::match_listener::Entity")]
+    MatchListener,
 }
 
 impl Related<super::action::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Action.def()
+    }
+}
+
+impl Related<super::match_host::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MatchHost.def()
+    }
+}
+
+impl Related<super::match_listener::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MatchListener.def()
     }
 }
 
