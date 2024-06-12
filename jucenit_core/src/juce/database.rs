@@ -103,17 +103,14 @@ mod tests {
             // Link listener to match
             .append_query_results([vec![
                 match_listener::Model {
-                    id: 1,
                     match_id: Some(1),
                     listener_id: Some(1),
                 },
                 match_listener::Model {
-                    id: 2,
                     match_id: Some(2),
                     listener_id: Some(2),
                 },
                 match_listener::Model {
-                    id: 3,
                     match_id: Some(1),
                     listener_id: Some(3),
                 },

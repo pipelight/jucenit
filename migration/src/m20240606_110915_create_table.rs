@@ -9,6 +9,7 @@
 
 use miette::{IntoDiagnostic, Result};
 use sea_orm_migration::prelude::*;
+use sea_query::Index;
 use strum::EnumIter;
 
 #[derive(DeriveMigrationName)]
@@ -23,28 +24,22 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(MatchListener::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(MatchListener::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                    .primary_key(
+                        Index::create()
+                            .col(MatchListener::MatchId)
+                            .col(MatchListener::ListenerId),
                     )
                     .col(ColumnDef::new(MatchListener::MatchId).integer())
                     .col(ColumnDef::new(MatchListener::ListenerId).integer())
                     .foreign_key(
                         ForeignKey::create()
                             .from(MatchListener::Table, MatchListener::MatchId)
-                            .to(NgMatch::Table, NgMatch::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
-                            .on_update(ForeignKeyAction::Cascade),
+                            .to(NgMatch::Table, NgMatch::Id),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .from(MatchListener::Table, MatchListener::ListenerId)
-                            .to(Listener::Table, Listener::Id)
-                            .on_update(ForeignKeyAction::Cascade)
-                            .on_delete(ForeignKeyAction::Cascade),
+                            .to(Listener::Table, Listener::Id),
                     )
                     .to_owned(),
             )
@@ -74,9 +69,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .from(MatchHost::Table, MatchHost::HostId)
-                            .to(Host::Table, Host::Id)
-                            .on_update(ForeignKeyAction::Cascade)
-                            .on_delete(ForeignKeyAction::Cascade),
+                            .to(Host::Table, Host::Id),
                     )
                     .to_owned(),
             )

@@ -17,8 +17,8 @@ pub enum Relation {
         belongs_to = "super::host::Entity",
         from = "Column::HostId",
         to = "super::host::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     Host,
     #[sea_orm(

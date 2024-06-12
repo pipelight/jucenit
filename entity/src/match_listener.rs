@@ -5,9 +5,9 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "match_listener")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
+    #[sea_orm(primary_key, auto_increment = false)]
     pub match_id: Option<i32>,
+    #[sea_orm(primary_key, auto_increment = false)]
     pub listener_id: Option<i32>,
 }
 
@@ -17,16 +17,16 @@ pub enum Relation {
         belongs_to = "super::listener::Entity",
         from = "Column::ListenerId",
         to = "super::listener::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     Listener,
     #[sea_orm(
         belongs_to = "super::ng_match::Entity",
         from = "Column::MatchId",
         to = "super::ng_match::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     NgMatch,
 }

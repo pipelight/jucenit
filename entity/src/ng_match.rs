@@ -46,4 +46,13 @@ impl Related<super::match_listener::Entity> for Entity {
     }
 }
 
+impl Related<super::listener::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::match_listener::Relation::Listener.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::match_listener::Relation::NgMatch.def().rev())
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}
