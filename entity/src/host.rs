@@ -23,4 +23,13 @@ impl Related<super::match_host::Entity> for Entity {
     }
 }
 
+impl Related<super::ng_match::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::match_host::Relation::NgMatch.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::match_host::Relation::Host.def().rev())
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}

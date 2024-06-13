@@ -29,7 +29,7 @@ pub static JUCENIT_CONFIG: Lazy<Arc<Mutex<Config>>> =
 #[derive(Debug, Serialize, Deserialize, Clone, Default, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    pub units: IndexMap<Match, Unit>,
+    // pub units: IndexMap<Match, Unit>,
 }
 
 /**
@@ -44,13 +44,13 @@ impl Config {
     pub async fn push(chunk: &Config) -> Result<()> {
         // Merge chunk to main configuration
         // and try push to nginx-unit.
-        let mut main = Self::pull().await?;
-        Config::merge(&mut main, chunk)?;
-
-        let nginx = NginxConfig::from(&main).await?;
-        NginxConfig::set(&nginx).await?;
-
-        Self::serialize(&main).await?;
+        // let mut main = Self::pull().await?;
+        // Config::merge(&mut main, chunk)?;
+        //
+        // let nginx = NginxConfig::from(&main).await?;
+        // NginxConfig::set(&nginx).await?;
+        //
+        // Self::serialize(&main).await?;
         Ok(())
     }
     /**
@@ -73,33 +73,33 @@ impl Config {
      * Insert a (Match,Unit) tuple into the configuration.
      */
     pub async fn add_unit((match_, unit): (Match, Unit)) -> Result<()> {
-        let mut main = Self::pull().await?;
-        if unit.kind == UnitKind::HttpChallenge {
-            // Clean unremoved challenges assossiated to host if any.
-            for k in main.units.clone().keys() {
-                if let Some(uri) = &k.uri {
-                    if uri.contains("/.well-known/acme-challenge/") && k.host == match_.host {
-                        main.units.shift_remove(k);
-                    }
-                }
-            }
-            main.units.shift_insert(0, match_, unit);
-        } else {
-            main.units.insert(match_, unit);
-        }
-        let nginx = NginxConfig::from(&main).await?;
-        NginxConfig::set(&nginx).await?;
-        Config::set(&main).await?;
+        // let mut main = Self::pull().await?;
+        // if unit.kind == UnitKind::HttpChallenge {
+        //     // Clean unremoved challenges assossiated to host if any.
+        //     for k in main.units.clone().keys() {
+        //         if let Some(uri) = &k.uri {
+        //             if uri.contains("/.well-known/acme-challenge/") && k.host == match_.host {
+        //                 main.units.shift_remove(k);
+        //             }
+        //         }
+        //     }
+        //     main.units.shift_insert(0, match_, unit);
+        // } else {
+        //     main.units.insert(match_, unit);
+        // }
+        // let nginx = NginxConfig::from(&main).await?;
+        // NginxConfig::set(&nginx).await?;
+        // Config::set(&main).await?;
         Ok(())
     }
     /**
      * Delete a (Match,Unit) tuple from the configuration.
      */
     pub async fn del_unit(match_: Match) -> Result<()> {
-        let mut main = Self::pull().await?;
-        main.units.shift_remove(&match_);
-        Config::set(&main).await?;
-
+        // let mut main = Self::pull().await?;
+        // main.units.shift_remove(&match_);
+        // Config::set(&main).await?;
+        //
         Ok(())
     }
     /**
@@ -163,10 +163,10 @@ impl Config {
     /**
      * Merge a configuration chunk to the main configuration.
      */
-    fn merge(main: &mut Config, chunk: &Config) -> Result<Config> {
-        main.units.extend(chunk.units.clone());
-        Ok(main.to_owned())
-    }
+    // fn merge(main: &mut Config, chunk: &Config) -> Result<Config> {
+    // main.units.extend(chunk.units.clone());
+    // Ok(main.to_owned())
+    // }
 
     // Methods below are for convernient serializing.
 

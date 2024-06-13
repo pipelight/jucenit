@@ -29,15 +29,21 @@ impl MigrationTrait for Migration {
                             .col(MatchListener::MatchId)
                             .col(MatchListener::ListenerId),
                     )
-                    .col(ColumnDef::new(MatchListener::MatchId).integer())
-                    .col(ColumnDef::new(MatchListener::ListenerId).integer())
+                    .col(ColumnDef::new(MatchListener::MatchId).integer().not_null())
+                    .col(
+                        ColumnDef::new(MatchListener::ListenerId)
+                            .integer()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk-match_id")
                             .from(MatchListener::Table, MatchListener::MatchId)
                             .to(NgMatch::Table, NgMatch::Id),
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk-listener_id")
                             .from(MatchListener::Table, MatchListener::ListenerId)
                             .to(Listener::Table, Listener::Id),
                     )
@@ -50,24 +56,22 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(MatchHost::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(MatchHost::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                    .primary_key(
+                        Index::create()
+                            .col(MatchHost::MatchId)
+                            .col(MatchHost::HostId),
                     )
-                    .col(ColumnDef::new(MatchHost::MatchId).integer())
-                    .col(ColumnDef::new(MatchHost::HostId).integer())
+                    .col(ColumnDef::new(MatchHost::MatchId).integer().not_null())
+                    .col(ColumnDef::new(MatchHost::HostId).integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk-match_id")
                             .from(MatchHost::Table, MatchHost::MatchId)
-                            .to(NgMatch::Table, NgMatch::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
-                            .on_update(ForeignKeyAction::Cascade),
+                            .to(NgMatch::Table, NgMatch::Id),
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk-host_id")
                             .from(MatchHost::Table, MatchHost::HostId)
                             .to(Host::Table, Host::Id),
                     )
@@ -90,11 +94,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(NgMatch::ActionId).integer().unique_key())
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-match-action_id")
+                            .name("fk-action_id")
                             .from(NgMatch::Table, NgMatch::ActionId)
                             .to(Action::Table, Action::Id),
                     )
-                    .col(ColumnDef::new(NgMatch::RawParams).json())
+                    .col(ColumnDef::new(NgMatch::RawParams).json().unique_key())
                     .to_owned(),
             )
             .await?;
@@ -243,7 +247,7 @@ pub enum Action {
 #[cfg(test)]
 mod tests {
     use crate::{Migrator, MigratorTrait};
-    use jucenit_core::{ConfigFile, JuceConfig};
+    use jucenit_core::ConfigFile;
     use miette::{IntoDiagnostic, Result};
 
     #[tokio::test]

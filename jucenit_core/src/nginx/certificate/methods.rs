@@ -6,8 +6,6 @@ use crate::ssl::Letsencrypt as LetsencryptCertificate;
 use std::collections::HashMap;
 
 // Globals
-use crate::juce::Config as JuceConfig;
-use crate::mapping::Tls;
 use crate::nginx::Config as NginxConfig;
 use crate::nginx::SETTINGS;
 
@@ -27,26 +25,25 @@ impl CertificateStore {
         let account = ssl::pebble_account().await?.clone();
         #[cfg(not(debug_assertions))]
         let account = ssl::letsencrypt_account().await?.clone();
-        for host in JuceConfig::get_hosts().await? {
-            let dns = host;
-            // For ACME limitation rate reason
-            // Check if a certificate already exists
-            let cert = CertificateStore::get(&dns).await;
-            match cert {
-                Ok(res) => {
-                    if res.validity.should_renew()? {
-                        let bundle =
-                            LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-                        CertificateStore::update(&dns, &bundle).await?;
-                    }
-                }
-                Err(_) => {
-                    let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-                    CertificateStore::update(&dns, &bundle).await?;
-                }
-            };
-        }
-        JuceConfig::push(&JuceConfig::pull().await?).await?;
+        // for host in JuceConfig::get_hosts().await? {
+        //     let dns = host;
+        //     // For ACME limitation rate reason
+        //     // Check if a certificate already exists
+        //     let cert = CertificateStore::get(&dns).await;
+        //     match cert {
+        //         Ok(res) => {
+        //             if res.validity.should_renew()? {
+        //                 let bundle =
+        //                     LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+        //                 CertificateStore::update(&dns, &bundle).await?;
+        //             }
+        //         }
+        //         Err(_) => {
+        //             let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+        //             CertificateStore::update(&dns, &bundle).await?;
+        //         }
+        //     };
+        // }
         Ok(())
     }
     /**
@@ -59,7 +56,7 @@ impl CertificateStore {
         for (key, _) in certificates {
             CertificateStore::remove(&key).await?;
         }
-        JuceConfig::push(&JuceConfig::pull().await?).await?;
+        // JuceConfig::push(&JuceConfig::pull().await?).await?;
         Ok(())
     }
     /**
@@ -124,7 +121,6 @@ mod tests {
     use miette::Result;
 
     use crate::ConfigFile;
-    use crate::JuceConfig;
     use crate::NginxConfig;
 
     use serial_test::serial;
@@ -135,15 +131,15 @@ mod tests {
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        JuceConfig::set(&JuceConfig::default()).await?;
+        // JuceConfig::set(&JuceConfig::default()).await?;
 
         // Set new configuration
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
-        let juce_config = JuceConfig::from(&config_file);
-        JuceConfig::set(&juce_config).await?;
+        // let juce_config = JuceConfig::from(&config_file);
+        // JuceConfig::set(&juce_config).await?;
 
         Ok(())
     }

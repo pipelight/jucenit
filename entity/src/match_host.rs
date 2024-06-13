@@ -5,10 +5,10 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "match_host")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
-    pub match_id: Option<i32>,
-    pub host_id: Option<i32>,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub match_id: i32,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub host_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -25,8 +25,8 @@ pub enum Relation {
         belongs_to = "super::ng_match::Entity",
         from = "Column::MatchId",
         to = "super::ng_match::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     NgMatch,
 }

@@ -1,5 +1,3 @@
-use crate::mapping::{ListenerOpts, Route};
-
 // Database
 use indexmap::IndexMap;
 use sea_orm::entity::prelude::*;
@@ -15,7 +13,7 @@ pub async fn connect() -> Result<DatabaseConnection> {
 }
 
 #[cfg(test)]
-mod tests {
+mod mock {
     use super::connect;
     use crate::{ConfigFile, Match};
     use entity::{prelude::*, *};
@@ -42,79 +40,6 @@ mod tests {
                     tls: None,
                 },
             ]])
-            // Add actions
-            .append_query_results([vec![
-                action::Model {
-                    id: 1,
-                    raw_params: Some(
-                        "{
-                            \"proxy\" = \"http://127.0.0.1:9080\",
-                        }"
-                        .to_owned(),
-                    ),
-                },
-                action::Model {
-                    id: 2,
-                    raw_params: Some(
-                        "{
-                            \"proxy\" = \"http://127.0.0.1:8333\",
-                        }"
-                        .to_owned(),
-                    ),
-                },
-            ]])
-            // Add nginx match conditions/parameters
-            .append_query_results([vec![
-                ng_match::Model {
-                    id: 1,
-                    action_id: Some(1),
-                    raw_params: None,
-                },
-                ng_match::Model {
-                    id: 2,
-                    action_id: Some(2),
-                    raw_params: None,
-                },
-            ]])
-            // Add host names
-            .append_query_results([vec![
-                host::Model {
-                    id: 1,
-                    domain: "test.com".to_owned(),
-                },
-                host::Model {
-                    id: 2,
-                    domain: "example.com".to_owned(),
-                },
-            ]])
-            // Link host to match
-            .append_query_results([vec![
-                match_host::Model {
-                    id: 1,
-                    host_id: Some(1),
-                    match_id: Some(1),
-                },
-                match_host::Model {
-                    id: 2,
-                    host_id: Some(2),
-                    match_id: Some(2),
-                },
-            ]])
-            // Link listener to match
-            .append_query_results([vec![
-                match_listener::Model {
-                    match_id: Some(1),
-                    listener_id: Some(1),
-                },
-                match_listener::Model {
-                    match_id: Some(2),
-                    listener_id: Some(2),
-                },
-                match_listener::Model {
-                    match_id: Some(1),
-                    listener_id: Some(3),
-                },
-            ]])
             .into_connection();
         Ok(db)
     }
@@ -126,7 +51,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn query_mock_db() -> Result<()> {
+    async fn find_all_listeners() -> Result<()> {
         let db = prepare_mock_db().await?;
 
         // Test db querying and joint
@@ -152,31 +77,39 @@ mod tests {
                 },
             ]
         );
-        let a_listener: Option<listener::Model> =
-            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
-        let a_listener: listener::Model = a_listener.unwrap();
-
-        let matches: Vec<(listener::Model, Vec<ng_match::Model>)> = Listener::find()
-            .find_with_related(NgMatch)
-            .all(&db)
-            .await
-            .into_diagnostic()?;
-
-        Ok(())
-    }
-
-    // #[tokio::test]
-    async fn insert_into_db() -> Result<()> {
-        let db = connect().await?;
-        let match_ = ng_match::ActiveModel {
-            ..Default::default() // all other attributes are `NotSet`
-        };
-        let match_: ng_match::Model = match_.insert(&db).await.into_diagnostic()?;
         Ok(())
     }
 
     #[tokio::test]
+    async fn find_one_listener() -> Result<()> {
+        let db = prepare_mock_db().await?;
+
+        let listener: Option<listener::Model> =
+            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
+        assert_eq!(
+            listener,
+            Some(listener::Model {
+                id: 1,
+                ip_socket: "*:443".to_owned(),
+                tls: None
+            })
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::connect;
+    use crate::{ConfigFile, Match};
+    use entity::{prelude::*, *};
+    use miette::{IntoDiagnostic, Result};
+    use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, MockDatabase};
+
+    #[tokio::test]
     async fn seed_db() -> Result<()> {
+        let db = connect().await?;
+
         // Get struct from config
         let toml = "
             [[unit]]
@@ -184,17 +117,18 @@ mod tests {
 
             [unit.match]
             hosts = ['test.com']
+            stuff = 'ee'
 
             [unit.action]
             proxy = 'http://127.0.0.1:8333'
         ";
         let config = ConfigFile::from_toml_str(toml)?;
+
+        println!("{:#?}", config);
         let unit = config.unit.first().unwrap();
 
-        let db = connect().await?;
-
-        let mut listeners = vec![];
-
+        // Insert listeners
+        let mut listeners: Vec<listener::ActiveModel> = vec![];
         for l in &unit.listeners {
             let listener = listener::ActiveModel {
                 ip_socket: ActiveValue::Set(l.to_owned()),
@@ -202,38 +136,56 @@ mod tests {
             };
             listeners.push(listener);
         }
-
-        // Host::insert()
-
-        let mut match_params = unit.match_.clone();
-        match_params.hosts = None;
-        NgMatch::insert(ng_match::ActiveModel {
-            raw_params: ActiveValue::Set(Some(
-                serde_json::to_value(match_params)
-                    .into_diagnostic()?
-                    .to_string(),
-            )),
-            ..Default::default()
-        })
-        .exec(&db)
-        .await
-        .into_diagnostic()?;
-
-        // Insert action and join
-        Action::insert(action::ActiveModel {
-            raw_params: ActiveValue::Set(Some(
-                serde_json::to_value(unit.action.clone())
-                    .into_diagnostic()?
-                    .to_string(),
-            )),
-
-            ..Default::default()
-        });
-
-        Listener::insert_many(listeners)
+        Listener::insert_many(listeners.clone())
+            .on_conflict(
+                OnConflict::column(listener::Column::IpSocket)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .do_nothing()
             .exec(&db)
             .await
             .into_diagnostic()?;
+
+        // Insert Match
+        let raw_params: Option<String> = unit.match_.clone().raw_params.map(|x| x.to_string());
+        let match_ = ng_match::ActiveModel {
+            raw_params: ActiveValue::Set(raw_params),
+            ..Default::default()
+        };
+        NgMatch::insert(match_).exec(&db).await.into_diagnostic()?;
+
+        // Insert Hosts
+        // for h in &unit.match_.hosts {
+        //     listeners.push(listener);
+        // }
+
+        // Insert Match
+
+        // let mut match_params = unit.match_.clone();
+        // match_params.hosts = None;
+        // NgMatch::insert(ng_match::ActiveModel {
+        //     raw_params: ActiveValue::Set(Some(
+        //         serde_json::to_value(match_params)
+        //             .into_diagnostic()?
+        //             .to_string(),
+        //     )),
+        //     ..Default::default()
+        // })
+        // .exec(&db)
+        // .await
+        // .into_diagnostic()?;
+        //
+        // // Insert action and join
+        // Action::insert(action::ActiveModel {
+        //     raw_params: ActiveValue::Set(Some(
+        //         serde_json::to_value(unit.action.clone())
+        //             .into_diagnostic()?
+        //             .to_string(),
+        //     )),
+        //
+        //     ..Default::default()
+        // });
 
         Ok(())
     }

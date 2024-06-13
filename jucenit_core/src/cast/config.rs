@@ -1,4 +1,3 @@
-use super::common::Action;
 use crate::nginx::Config as NginxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -119,18 +118,26 @@ pub struct Unit {
     pub id: Option<String>,
     pub action: Option<Action>,
     #[serde(rename = "match")]
-    pub match_: MultiMatch,
+    pub match_: Match,
     pub listeners: Vec<String>,
 }
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[serde(deny_unknown_fields)]
-pub struct MultiMatch {
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct Action {
+    // Reverse proxy
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub raw_params: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct Match {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hosts: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<Vec<String>>,
+    #[serde(flatten)]
+    pub raw_params: Option<serde_json::Value>,
 }
 
 #[cfg(test)]
@@ -145,6 +152,12 @@ mod tests {
         Ok(())
     }
     #[test]
+    fn seek_a_config_file() -> Result<()> {
+        let res = ConfigFile::get()?;
+        println!("{:#?}", res);
+        Ok(())
+    }
+    #[test]
     fn get_from_toml_string() -> Result<()> {
         let toml = "
             [[unit]]
@@ -152,18 +165,12 @@ mod tests {
 
             [unit.match]
             hosts = ['test.com']
+            uri = '/site'
 
             [unit.action]
             proxy = 'http://127.0.0.1:8333'
         ";
         let res = ConfigFile::from_toml_str(toml)?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-
-    #[test]
-    fn seek_a_config_file() -> Result<()> {
-        let res = ConfigFile::get()?;
         println!("{:#?}", res);
         Ok(())
     }

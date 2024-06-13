@@ -19,7 +19,6 @@ use uuid::Uuid;
 // Crate structs
 use super::pebble::{pebble_account, pebble_http_client, PEBBLE_CERT_URL};
 use crate::cast::{Action, Match};
-use crate::juce::{Config as JuceConfig, Unit as JuceUnit, UnitKind};
 use openssl::x509::X509;
 
 // Production url
@@ -65,23 +64,23 @@ fn make_jucenit_tls_alpn_challenge_config(dns: &str, challenge: &Challenge) -> R
     let http_port = 80;
     let tls_port = 443;
     // Update nginx-unit config
-    let match_ = Match {
-        uri: Some(format!(
-            "/.well-known/acme-challenge/{}",
-            challenge.token.clone().unwrap()
-        )),
-        host: Some(dns.to_owned()),
-        ..Match::default()
-    };
-    let unit = JuceUnit {
-        id: Some(format!("challenge_{}", dns)),
-        kind: UnitKind::HttpChallenge,
-        listeners: vec![format!("*:{}", http_port)],
-        action: Some(Action {
-            share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
-            ..Action::default()
-        }),
-    };
+    // let match_ = Match {
+    //     uri: Some(format!(
+    //         "/.well-known/acme-challenge/{}",
+    //         challenge.token.clone().unwrap()
+    //     )),
+    //     host: Some(dns.to_owned()),
+    //     ..Match::default()
+    // };
+    // let unit = JuceUnit {
+    //     id: Some(format!("challenge_{}", dns)),
+    //     kind: UnitKind::HttpChallenge,
+    //     listeners: vec![format!("*:{}", http_port)],
+    //     action: Some(Action {
+    //         share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
+    //         ..Action::default()
+    //     }),
+    // };
     let cert = String::new();
     Ok(cert)
 }
@@ -90,32 +89,31 @@ fn make_jucenit_tls_alpn_challenge_config(dns: &str, challenge: &Challenge) -> R
 * A file at `https://example.com/.well-known/${challenge.token}`
 * with the content of `challenge.key_authorization()??`.
 */
-fn make_jucenit_http_challenge_config(
-    dns: &str,
-    challenge: &Challenge,
-) -> Result<(Match, JuceUnit)> {
+fn make_jucenit_http_challenge_config(dns: &str, challenge: &Challenge) -> Result<()> {
+    // ) -> Result<(Match, JuceUnit)> {
     // Challenge ports
     let http_port = 80;
     let tls_port = 443;
     // Update nginx-unit config
-    let match_ = Match {
-        uri: Some(format!(
-            "/.well-known/acme-challenge/{}",
-            challenge.token.clone().unwrap()
-        )),
-        host: Some(dns.to_owned()),
-        ..Match::default()
-    };
-    let unit = JuceUnit {
-        id: Some(format!("challenge_{}", dns)),
-        kind: UnitKind::HttpChallenge,
-        listeners: vec![format!("*:{}", http_port)],
-        action: Some(Action {
-            share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
-            ..Action::default()
-        }),
-    };
-    Ok((match_, unit))
+    // let match_ = Match {
+    //     uri: Some(format!(
+    //         "/.well-known/acme-challenge/{}",
+    //         challenge.token.clone().unwrap()
+    //     )),
+    //     host: Some(dns.to_owned()),
+    //     ..Match::default()
+    // };
+    // let unit = JuceUnit {
+    //     id: Some(format!("challenge_{}", dns)),
+    //     kind: UnitKind::HttpChallenge,
+    //     listeners: vec![format!("*:{}", http_port)],
+    //     action: Some(Action {
+    //         share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
+    //         ..Action::default()
+    //     }),
+    // };
+    // Ok((match_, unit))
+    Ok(())
 }
 
 /**
@@ -216,8 +214,8 @@ impl Letsencrypt {
     async fn http_challenge(dns: &str, auth: Authorization, challenge: &Challenge) -> Result<()> {
         // Create route to challenge key file
         set_challenge_key_file(dns, &challenge)?;
-        let (match_, unit) = make_jucenit_http_challenge_config(dns, &challenge)?;
-        JuceConfig::add_unit((match_.clone(), unit)).await?;
+        // let (match_, unit) = make_jucenit_http_challenge_config(dns, &challenge)?;
+        // JuceConfig::add_unit((match_.clone(), unit)).await?;
 
         let challenge = challenge.validate().await.into_diagnostic()?;
         let challenge = challenge
@@ -228,7 +226,7 @@ impl Letsencrypt {
 
         // Delete route to challenge key file
         del_challenge_key_file(dns, &challenge)?;
-        JuceConfig::del_unit(match_.clone()).await?;
+        // JuceConfig::del_unit(match_.clone()).await?;
 
         let authorization = auth
             .wait_done(Duration::from_secs(5), 10)
@@ -289,12 +287,12 @@ mod tests {
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        JuceConfig::set(&JuceConfig::default()).await?;
+        // JuceConfig::set(&JuceConfig::default()).await?;
 
         // Set new configuration
         let config_file = ConfigFile::load("../examples/jucenit.toml")?;
-        let juce_config = JuceConfig::from(&config_file);
-        JuceConfig::set(&juce_config).await?;
+        // let juce_config = JuceConfig::from(&config_file);
+        // JuceConfig::set(&juce_config).await?;
 
         Ok(())
     }

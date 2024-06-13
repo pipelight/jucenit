@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 // Error Handling
 use miette::Result;
 //
-use jucenit_core::{ConfigFile, JuceConfig, NginxConfig};
+use jucenit_core::{ConfigFile, NginxConfig};
 
 /*
 The Cli struct is the entrypoint for command line argument parsing:
@@ -49,17 +49,17 @@ impl Cli {
             Commands::Push(args) => {
                 if let Some(file) = args.file {
                     let config_file = ConfigFile::load(&file)?;
-                    JuceConfig::push(&JuceConfig::from(&config_file)).await?;
+                    // JuceConfig::push(&JuceConfig::from(&config_file)).await?;
                 } else {
                     let config_file = ConfigFile::get()?;
-                    JuceConfig::push(&JuceConfig::from(&config_file)).await?;
+                    // JuceConfig::push(&JuceConfig::from(&config_file)).await?;
                 }
             }
             Commands::Clean => {
-                JuceConfig::set(&JuceConfig::default()).await?;
+                // JuceConfig::set(&JuceConfig::default()).await?;
             }
             Commands::Edit => {
-                JuceConfig::pull().await?.edit().await?;
+                // JuceConfig::pull().await?.edit().await?;
             }
             Commands::Ssl(args) => {
                 if args.renew {
@@ -120,7 +120,7 @@ mod tests {
     use std::path::PathBuf;
     use std::process::Command; // Run commnds
 
-    use jucenit_core::{CertificateStore, ConfigFile, JuceConfig};
+    use jucenit_core::{CertificateStore, ConfigFile};
 
     /**
      * Set a fresh testing environment
@@ -128,7 +128,7 @@ mod tests {
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        JuceConfig::set(&JuceConfig::default()).await?;
+        // JuceConfig::set(&JuceConfig::default()).await?;
 
         // Set new configuration
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -136,8 +136,8 @@ mod tests {
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
 
-        let juce_config = JuceConfig::from(&config_file);
-        JuceConfig::set(&juce_config).await?;
+        // let juce_config = JuceConfig::from(&config_file);
+        // JuceConfig::set(&juce_config).await?;
 
         Ok(())
     }

@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 // exec
-use crate::mapping::{ListenerOpts, Route, Tls};
 use crate::nginx::certificate::CertificateStore;
 use crate::ssl::Fake as FakeCertificate;
 use crate::ssl::Letsencrypt as LetsencryptCertificate;
@@ -17,10 +16,78 @@ use crate::{ssl, Nginx};
 use futures::executor::block_on;
 
 // Config file
-use crate::cast::{Action, Config as ConfigFile, Match};
+use crate::cast::Config as ConfigFile;
 
 use http::uri::Uri;
 use std::env;
+
+// Common structs to file config and unit config
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
+pub struct Action {
+    // Reverse proxy
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<String>,
+    // Public folder
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub share: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chroot: Option<String>,
+    // Error
+    #[serde(rename = "return")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_number: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rewrite: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pass: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<Box<Action>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Match {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub hosts: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
+    pub raw_params: Option<serde_json::Value>,
+}
+
+// #[derive(Debug, Serialize, Deserialize, Clone)]
+// pub struct Config {
+//     pub listeners: HashMap<String, ListenerOpts>,
+//     pub routes: HashMap<String, Vec<Route>>,
+// }
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct ListenerOpts {
+    pub pass: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tls: Option<Tls>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct Tls {
+    pub certificate: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct Route {
+    pub action: Option<Action>,
+    #[serde(rename = "match")]
+    pub match_: Match,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -121,7 +188,6 @@ impl Config {
 mod tests {
 
     use crate::cast::Config as ConfigFile;
-    use crate::juce::Config as JuceConfig;
     use crate::nginx::{Config as NginxConfig, Nginx};
     use std::path::PathBuf;
     // Error handling
@@ -148,9 +214,9 @@ mod tests {
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
 
-        let nginx_config = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
-        let res = NginxConfig::set(&nginx_config).await?;
-        println!("{:#?}", res);
+        // let nginx_config = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
+        // let res = NginxConfig::set(&nginx_config).await?;
+        // println!("{:#?}", res);
         Ok(())
     }
 }
