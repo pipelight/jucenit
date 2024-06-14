@@ -9,6 +9,7 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(unique)]
     pub action_id: Option<i32>,
+    #[sea_orm(unique)]
     pub raw_params: Option<String>,
 }
 

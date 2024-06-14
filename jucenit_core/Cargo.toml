@@ -37,6 +37,7 @@ sea-orm = { version = "0.12.15", features = [
   "macros",
   "mock",
 ] }
+tracing = { version = "0.1.40", features = ["log", "async-await"] }
 
 [dev-dependencies]
 serial_test = "3.1.1"
