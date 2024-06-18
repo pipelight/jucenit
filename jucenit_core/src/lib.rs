@@ -5,5 +5,5 @@ mod error;
 pub mod juce;
 pub mod nginx;
 mod ssl;
-pub use cast::{Action, Config as ConfigFile, Match};
+pub use cast::{Action, Config as ConfigFile, Match, Unit as ConfigUnit};
 pub use nginx::{CertificateStore, Config as NginxConfig, Nginx};

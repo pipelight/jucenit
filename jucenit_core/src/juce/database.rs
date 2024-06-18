@@ -1,6 +1,8 @@
 // Database
+use crate::{ConfigFile, ConfigUnit, Match};
+use entity::{prelude::*, *};
 use indexmap::IndexMap;
-use sea_orm::entity::prelude::*;
+use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
 use sea_orm::{Database, DatabaseConnection};
 // Logging
 use tracing::{debug, Level};
@@ -12,126 +14,18 @@ pub async fn connect() -> Result<DatabaseConnection> {
     let db: DatabaseConnection = Database::connect(database_url).await.into_diagnostic()?;
     Ok(db)
 }
-
-#[cfg(test)]
-mod mock {
-    use super::connect;
-    use crate::{ConfigFile, Match};
-    use entity::{prelude::*, *};
-    use sea_orm::{prelude::*, ActiveValue, MockDatabase};
-    // Error Handling
-    use miette::{IntoDiagnostic, Result};
-
-    async fn prepare_mock_db() -> Result<DatabaseConnection> {
-        let db: DatabaseConnection = MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
-            // Add listeners
-            .append_query_results([vec![
-                listener::Model {
-                    id: 1,
-                    ip_socket: "*:443".to_owned(),
-                    tls: None,
-                },
-                listener::Model {
-                    id: 2,
-                    ip_socket: "*:587".to_owned(),
-                    tls: None,
-                },
-                listener::Model {
-                    id: 3,
-                    ip_socket: "*:993".to_owned(),
-                    tls: None,
-                },
-            ]])
-            .into_connection();
-        Ok(db)
-    }
-
-    #[tokio::test]
-    async fn connect_to_db() -> Result<()> {
-        connect().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn find_all_listeners() -> Result<()> {
-        let db = prepare_mock_db().await?;
-
-        // Test db querying and joint
-        let all_listeners: Vec<listener::Model> =
-            Listener::find().all(&db).await.into_diagnostic()?;
-        assert_eq!(
-            all_listeners,
-            vec![
-                listener::Model {
-                    id: 1,
-                    ip_socket: "*:443".to_owned(),
-                    tls: None
-                },
-                listener::Model {
-                    id: 2,
-                    ip_socket: "*:587".to_owned(),
-                    tls: None
-                },
-                listener::Model {
-                    id: 3,
-                    ip_socket: "*:993".to_owned(),
-                    tls: None
-                },
-            ]
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn find_one_listener() -> Result<()> {
-        let db = prepare_mock_db().await?;
-
-        let listener: Option<listener::Model> =
-            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
-        assert_eq!(
-            listener,
-            Some(listener::Model {
-                id: 1,
-                ip_socket: "*:443".to_owned(),
-                tls: None
-            })
-        );
+impl ConfigFile {
+    pub async fn push(&self) -> Result<()> {
+        for unit in &self.unit {
+            unit.push().await?;
+        }
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::connect;
-    use crate::{ConfigFile, Match};
-    use entity::{prelude::*, *};
-    use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
-    // Logging
-    use tracing::{debug, Level};
-    // Error Handling
-    use miette::{IntoDiagnostic, Result};
-
-    #[tokio::test]
-    async fn seed_db() -> Result<()> {
+impl ConfigUnit {
+    pub async fn push(&self) -> Result<()> {
+        let unit = self;
         let db = connect().await?;
-
-        // Get struct from config
-        let toml = "
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            hosts = ['test.com','example.com']
-            raw_arguments = 'random_sting'
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-        ";
-        let config = ConfigFile::from_toml_str(toml)?;
-        // println!("{:#?}", config);
-
-        let unit = config.unit.first().unwrap();
-
         // Insert Action
         let mut action = None;
         if let Some(a) = &unit.action.clone() {
@@ -320,6 +214,128 @@ mod test {
             .exec(&db)
             .await
             .into_diagnostic()?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod mock {
+    use super::connect;
+    use crate::{ConfigFile, Match};
+    use entity::{prelude::*, *};
+    use sea_orm::{prelude::*, ActiveValue, MockDatabase};
+    // Error Handling
+    use miette::{IntoDiagnostic, Result};
+
+    async fn prepare_mock_db() -> Result<DatabaseConnection> {
+        let db: DatabaseConnection = MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
+            // Add listeners
+            .append_query_results([vec![
+                listener::Model {
+                    id: 1,
+                    ip_socket: "*:443".to_owned(),
+                    tls: None,
+                },
+                listener::Model {
+                    id: 2,
+                    ip_socket: "*:587".to_owned(),
+                    tls: None,
+                },
+                listener::Model {
+                    id: 3,
+                    ip_socket: "*:993".to_owned(),
+                    tls: None,
+                },
+            ]])
+            .into_connection();
+        Ok(db)
+    }
+
+    #[tokio::test]
+    async fn connect_to_db() -> Result<()> {
+        connect().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn find_all_listeners() -> Result<()> {
+        let db = prepare_mock_db().await?;
+
+        // Test db querying and joint
+        let all_listeners: Vec<listener::Model> =
+            Listener::find().all(&db).await.into_diagnostic()?;
+        assert_eq!(
+            all_listeners,
+            vec![
+                listener::Model {
+                    id: 1,
+                    ip_socket: "*:443".to_owned(),
+                    tls: None
+                },
+                listener::Model {
+                    id: 2,
+                    ip_socket: "*:587".to_owned(),
+                    tls: None
+                },
+                listener::Model {
+                    id: 3,
+                    ip_socket: "*:993".to_owned(),
+                    tls: None
+                },
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn find_one_listener() -> Result<()> {
+        let db = prepare_mock_db().await?;
+
+        let listener: Option<listener::Model> =
+            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
+        assert_eq!(
+            listener,
+            Some(listener::Model {
+                id: 1,
+                ip_socket: "*:443".to_owned(),
+                tls: None
+            })
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::connect;
+    use crate::{ConfigFile, Match};
+    use entity::{prelude::*, *};
+    use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
+    // Logging
+    use tracing::{debug, Level};
+    // Error Handling
+    use miette::{IntoDiagnostic, Result};
+
+    #[tokio::test]
+    async fn seed_db() -> Result<()> {
+        let db = connect().await?;
+
+        // Get struct from config
+        let toml = "
+            [[unit]]
+            listeners = ['*:443']
+
+            [unit.match]
+            hosts = ['test.com','example.com']
+            raw_arguments = 'random_sting'
+
+            [unit.action]
+            proxy = 'http://127.0.0.1:8333'
+        ";
+        let config = ConfigFile::from_toml_str(toml)?;
+
+        config.push().await?;
 
         Ok(())
     }
