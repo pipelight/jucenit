@@ -39,7 +39,6 @@ impl ConfigFile {
     pub async fn push(&self) -> Result<()> {
         self.push_to_db().await?;
         let nginx_config = db_into_nginx_conf().await?;
-        println!("{:#?}", nginx_config);
         nginx_config.set().await?;
         Ok(())
     }
