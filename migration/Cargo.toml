@@ -9,7 +9,6 @@ name = "migration"
 path = "src/lib.rs"
 
 [dependencies]
-jucenit_core = { path = "../jucenit_core/" }
 miette = { version = "7.2.0", features = ["fancy"] }
 tokio = { version = "1.37.0", features = ["full"] }
 async-std = { version = "1", features = ["attributes", "tokio1"] }

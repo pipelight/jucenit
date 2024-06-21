@@ -2210,6 +2210,7 @@ dependencies = [
  "http",
  "indexmap",
  "miette 7.2.0",
+ "migration",
  "notify",
  "once_cell",
  "openssl",
@@ -2502,7 +2503,6 @@ name = "migration"
 version = "0.1.0"
 dependencies = [
  "async-std",
- "jucenit_core",
  "miette 7.2.0",
  "sea-orm",
  "sea-orm-migration",

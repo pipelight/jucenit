@@ -1,7 +1,11 @@
 // Database
-use crate::{ConfigFile, ConfigUnit, Match};
+use crate::database::{connect_db, fresh_db};
+use crate::nginx::db_into_nginx_conf;
+use crate::{ConfigFile, ConfigUnit};
+// Sea orm
+// use indexmap::IndexMap;
 use entity::{prelude::*, *};
-use indexmap::IndexMap;
+use migration::{Migrator, MigratorTrait};
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
 use sea_orm::{Database, DatabaseConnection};
 // Logging
@@ -9,23 +13,50 @@ use tracing::{debug, Level};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
-pub async fn connect() -> Result<DatabaseConnection> {
-    let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-    let db: DatabaseConnection = Database::connect(database_url).await.into_diagnostic()?;
-    Ok(db)
-}
 impl ConfigFile {
-    pub async fn push(&self) -> Result<()> {
+    /**
+     * Push file to database
+     */
+    pub async fn push_to_db(&self) -> Result<()> {
         for unit in &self.unit {
             unit.push().await?;
         }
+        Ok(())
+    }
+    /**
+     * Clean up database and push file to database
+     */
+    async fn push_to_fresh_db(&self) -> Result<()> {
+        fresh_db().await?;
+        for unit in &self.unit {
+            unit.push().await?;
+        }
+        Ok(())
+    }
+    /**
+     * Push file to database
+     */
+    pub async fn push(&self) -> Result<()> {
+        self.push_to_db().await?;
+        let nginx_config = db_into_nginx_conf().await?;
+        println!("{:#?}", nginx_config);
+        nginx_config.set().await?;
+        Ok(())
+    }
+    /**
+     * Clean up database and push file to database
+     */
+    pub async fn set(&self) -> Result<()> {
+        self.push_to_fresh_db().await?;
+        let nginx_config = db_into_nginx_conf().await?;
+        nginx_config.set().await?;
         Ok(())
     }
 }
 impl ConfigUnit {
     pub async fn push(&self) -> Result<()> {
         let unit = self;
-        let db = connect().await?;
+        let db = connect_db().await?;
         // Insert Action
         let mut action = None;
         if let Some(a) = &unit.action.clone() {
@@ -95,6 +126,7 @@ impl ConfigUnit {
         };
 
         // Insert listeners
+        assert!(!&unit.listeners.is_empty());
         let mut listeners: Vec<listener::ActiveModel> = vec![];
         for l in &unit.listeners {
             let listener = listener::ActiveModel {
@@ -109,29 +141,25 @@ impl ConfigUnit {
                     .do_nothing()
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .do_nothing()
+            .exec_without_returning(&db)
             .await
-            .into_diagnostic();
+            .into_diagnostic()?;
 
         // Populate entities with ids
-        let _ = match res {
-            Ok(models) => {}
-            Err(e) => {
-                // debug!("{}", e);
-                // println!("{}", e);
-                let models = Listener::find()
-                    .filter(listener::Column::IpSocket.is_in(&unit.listeners))
-                    .all(&db)
-                    .await
-                    .into_diagnostic()?;
-                listeners = models
-                    .iter()
-                    .map(|x| listener::ActiveModel::from(x.to_owned()))
-                    .collect();
-            }
-        };
+        let models = Listener::find()
+            .filter(listener::Column::IpSocket.is_in(&unit.listeners))
+            .all(&db)
+            .await
+            .into_diagnostic()?;
+        listeners = models
+            .iter()
+            .map(|x| listener::ActiveModel::from(x.to_owned()))
+            .collect();
 
         // Join Match and Listener
+        assert!(!&listeners.is_empty());
+
         let mut list: Vec<match_listener::ActiveModel> = vec![];
         for listener in listeners {
             let match_listener = match_listener::ActiveModel {
@@ -155,6 +183,8 @@ impl ConfigUnit {
             .into_diagnostic()?;
 
         // Insert Hosts
+        assert!(&unit.match_.hosts.is_some());
+
         let mut hosts: Vec<host::ActiveModel> = vec![];
         if let Some(dns) = &unit.match_.hosts {
             for host in dns {
@@ -170,29 +200,27 @@ impl ConfigUnit {
                         .do_nothing()
                         .to_owned(),
                 )
-                .exec_with_returning(&db)
+                .do_nothing()
+                .exec_without_returning(&db)
                 .await
                 .into_diagnostic();
             // Populate entities with ids
-            let _ = match res {
-                Ok(models) => {}
-                Err(e) => {
-                    // debug!("{}", e);
-                    // println!("{}", e);
-                    let models = Host::find()
-                        .filter(host::Column::Domain.is_in(dns))
-                        .all(&db)
-                        .await
-                        .into_diagnostic()?;
-                    hosts = models
-                        .iter()
-                        .map(|x| host::ActiveModel::from(x.to_owned()))
-                        .collect();
-                }
-            };
+            // debug!("{}", e);
+            // println!("{}", e);
+            let models = Host::find()
+                .filter(host::Column::Domain.is_in(dns))
+                .all(&db)
+                .await
+                .into_diagnostic()?;
+            hosts = models
+                .iter()
+                .map(|x| host::ActiveModel::from(x.to_owned()))
+                .collect();
         };
 
         // Join Match and Host
+        assert!(&unit.match_.hosts.is_some());
+
         let mut list: Vec<match_host::ActiveModel> = vec![];
         for host in hosts {
             let match_host = match_host::ActiveModel {
@@ -221,8 +249,7 @@ impl ConfigUnit {
 
 #[cfg(test)]
 mod mock {
-    use super::connect;
-    use crate::{ConfigFile, Match};
+    use crate::ConfigFile;
     use entity::{prelude::*, *};
     use sea_orm::{prelude::*, ActiveValue, MockDatabase};
     // Error Handling
@@ -250,12 +277,6 @@ mod mock {
             ]])
             .into_connection();
         Ok(db)
-    }
-
-    #[tokio::test]
-    async fn connect_to_db() -> Result<()> {
-        connect().await?;
-        Ok(())
     }
 
     #[tokio::test]
@@ -308,7 +329,7 @@ mod mock {
 
 #[cfg(test)]
 mod test {
-    use super::connect;
+    use crate::database::{connect_db, fresh_db};
     use crate::{ConfigFile, Match};
     use entity::{prelude::*, *};
     use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
@@ -318,8 +339,14 @@ mod test {
     use miette::{IntoDiagnostic, Result};
 
     #[tokio::test]
+    async fn connect_to_db() -> Result<()> {
+        connect_db().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn seed_db() -> Result<()> {
-        let db = connect().await?;
+        let db = fresh_db().await?;
 
         // Get struct from config
         let toml = "
@@ -328,15 +355,12 @@ mod test {
 
             [unit.match]
             hosts = ['test.com','example.com']
-            raw_arguments = 'random_sting'
 
             [unit.action]
             proxy = 'http://127.0.0.1:8333'
         ";
         let config = ConfigFile::from_toml_str(toml)?;
-
         config.push().await?;
-
         Ok(())
     }
 }

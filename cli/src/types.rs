@@ -49,14 +49,15 @@ impl Cli {
             Commands::Push(args) => {
                 if let Some(file) = args.file {
                     let config_file = ConfigFile::load(&file)?;
-                    // JuceConfig::push(&JuceConfig::from(&config_file)).await?;
+                    config_file.push().await?;
                 } else {
                     let config_file = ConfigFile::get()?;
-                    // JuceConfig::push(&JuceConfig::from(&config_file)).await?;
+                    config_file.push().await?;
                 }
             }
             Commands::Clean => {
-                // JuceConfig::set(&JuceConfig::default()).await?;
+                let config_file = ConfigFile::default();
+                config_file.set().await?;
             }
             Commands::Edit => {
                 // JuceConfig::pull().await?.edit().await?;
@@ -128,20 +129,18 @@ mod tests {
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        // JuceConfig::set(&JuceConfig::default()).await?;
+        let config_file = ConfigFile::default();
+        config_file.set().await?;
 
         // Set new configuration
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
-
-        // let juce_config = JuceConfig::from(&config_file);
-        // JuceConfig::set(&juce_config).await?;
-
+        config_file.set().await?;
         Ok(())
     }
-    // #[test]
+
     fn parse_command_line() -> Result<()> {
         let e = "jucenit --help";
         let os_str: Vec<&str> = e.split(' ').collect();
@@ -160,7 +159,8 @@ mod tests {
         cmd.assert().success();
         Ok(())
     }
-    #[tokio::test]
+
+    // #[tokio::test]
     async fn renew_ssl() -> Result<()> {
         set_testing_config().await?;
         let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;

@@ -247,13 +247,11 @@ pub enum Action {
 #[cfg(test)]
 mod tests {
     use crate::{Migrator, MigratorTrait};
-    use jucenit_core::ConfigFile;
     use miette::{IntoDiagnostic, Result};
 
     #[tokio::test]
     async fn create_db() -> Result<()> {
         let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-
         let connection = sea_orm::Database::connect(database_url)
             .await
             .into_diagnostic()?;

@@ -7,8 +7,8 @@
 //! This is a powerful intermediate
 //! that is, in the end, lossy converted to a nginx-unit configuration.
 //!
-// mod crud;
-mod database;
+mod crud;
 
 // Reexports
 // pub use crud::*;
+pub use crud::{connect_db, fresh_db};

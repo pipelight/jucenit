@@ -1,5 +1,6 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env::temp_dir};
+use std::env::temp_dir;
 use tokio::task::spawn_local;
 // Global vars
 use crate::nginx::SETTINGS;
@@ -22,29 +23,12 @@ use http::uri::Uri;
 use std::env;
 
 // Common structs to file config and unit config
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Action {
-    // Reverse proxy
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proxy: Option<String>,
-    // Public folder
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub share: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chroot: Option<String>,
-    // Error
-    #[serde(rename = "return")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub return_number: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rewrite: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pass: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fallback: Option<Box<Action>>,
+    #[serde(flatten)]
+    pub raw_params: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -52,23 +36,13 @@ pub struct Action {
 pub struct Match {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub hosts: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
     pub raw_params: Option<serde_json::Value>,
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone)]
-// pub struct Config {
-//     pub listeners: HashMap<String, ListenerOpts>,
-//     pub routes: HashMap<String, Vec<Route>>,
-// }
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ListenerOpts {
     pub pass: String,
@@ -76,7 +50,7 @@ pub struct ListenerOpts {
     pub tls: Option<Tls>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Tls {
     pub certificate: Vec<String>,
@@ -91,8 +65,8 @@ pub struct Route {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub listeners: HashMap<String, ListenerOpts>,
-    pub routes: HashMap<String, Vec<Route>>,
+    pub listeners: IndexMap<String, ListenerOpts>,
+    pub routes: IndexMap<String, Vec<Route>>,
     pub settings: Option<serde_json::Value>,
 }
 impl Default for Config {
@@ -111,12 +85,11 @@ impl Default for Config {
             .unwrap(),
         );
 
-        let listeners = HashMap::new();
+        let listeners = IndexMap::new();
 
         // Ensure routes is an array
         // Avoid Json inconsistency
-        let routes = HashMap::new();
-
+        let routes = IndexMap::new();
         Config {
             routes,
             listeners,
@@ -124,16 +97,17 @@ impl Default for Config {
         }
     }
 }
+
 impl Config {
     /**
      * Replace the in place configuration.
      */
-    pub async fn set(config: &Config) -> Result<Config> {
+    pub async fn set(&self) -> Result<Config> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
             .put(settings.get_url() + "/config")
-            .body(serde_json::to_string(&config).into_diagnostic()?)
+            .body(serde_json::to_string(&self).into_diagnostic()?)
             .send()
             .await
             .into_diagnostic()?
@@ -166,7 +140,7 @@ impl Config {
                 return Err(Error::msg(message));
             }
         };
-        return Ok(config.clone());
+        return Ok(self.clone());
     }
 
     /**
@@ -188,10 +162,10 @@ impl Config {
 mod tests {
 
     use crate::cast::Config as ConfigFile;
-    use crate::nginx::{Config as NginxConfig, Nginx};
+    use crate::nginx::{db_into_nginx_conf, Config as NginxConfig, Nginx};
     use std::path::PathBuf;
     // Error handling
-    use miette::Result;
+    use miette::{IntoDiagnostic, Result};
 
     #[tokio::test]
     async fn get_config() -> Result<()> {
@@ -200,7 +174,7 @@ mod tests {
         Ok(())
     }
 
-    // #[tokio::test]
+    #[tokio::test]
     async fn set_default_config() -> Result<()> {
         let res = NginxConfig::set(&NginxConfig::default()).await?;
         println!("{:#?}", res);
@@ -213,10 +187,15 @@ mod tests {
         path.push("../examples/jucenit.toml");
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
+        config_file.push_to_db().await?;
+        let nginx_config = db_into_nginx_conf().await?;
 
-        // let nginx_config = NginxConfig::from(&JuceConfig::from(&config_file)).await?;
-        // let res = NginxConfig::set(&nginx_config).await?;
-        // println!("{:#?}", res);
+        let json = serde_json::to_string_pretty(&nginx_config).into_diagnostic()?;
+        println!("{}", json);
+
+        let res = nginx_config.set().await?;
+        println!("{:#?}", res);
+
         Ok(())
     }
 }

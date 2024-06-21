@@ -1,9 +1,10 @@
 pub mod certificate;
 pub mod config;
-pub mod ops;
+pub mod from_database;
+pub mod options;
 
 // Reexports
 pub use certificate::CertificateStore;
 pub use config::Config;
-pub use ops::Nginx;
-pub use ops::SETTINGS;
+pub use from_database::*;
+pub use options::{Nginx, SETTINGS};
