@@ -17,16 +17,16 @@ pub enum Relation {
         belongs_to = "super::listener::Entity",
         from = "Column::ListenerId",
         to = "super::listener::Column::Id",
-        on_update = "NoAction",
-        on_delete = "NoAction"
+        on_update = "Cascade",
+        on_delete = "SetNull"
     )]
     Listener,
     #[sea_orm(
         belongs_to = "super::ng_match::Entity",
         from = "Column::MatchId",
         to = "super::ng_match::Column::Id",
-        on_update = "NoAction",
-        on_delete = "NoAction"
+        on_update = "Cascade",
+        on_delete = "SetNull"
     )]
     NgMatch,
 }

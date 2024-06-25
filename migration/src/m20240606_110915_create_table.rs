@@ -39,13 +39,17 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk-match_id")
                             .from(MatchListener::Table, MatchListener::MatchId)
-                            .to(NgMatch::Table, NgMatch::Id),
+                            .to(NgMatch::Table, NgMatch::Id)
+                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-listener_id")
                             .from(MatchListener::Table, MatchListener::ListenerId)
-                            .to(Listener::Table, Listener::Id),
+                            .to(Listener::Table, Listener::Id)
+                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -67,13 +71,17 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk-match_id")
                             .from(MatchHost::Table, MatchHost::MatchId)
-                            .to(NgMatch::Table, NgMatch::Id),
+                            .to(NgMatch::Table, NgMatch::Id)
+                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-host_id")
                             .from(MatchHost::Table, MatchHost::HostId)
-                            .to(Host::Table, Host::Id),
+                            .to(Host::Table, Host::Id)
+                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -91,7 +99,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(NgMatch::ActionId).integer().unique_key())
+                    .col(ColumnDef::new(NgMatch::ActionId).integer())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-action_id")

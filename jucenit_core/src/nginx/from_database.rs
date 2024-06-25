@@ -21,13 +21,13 @@ pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
 
     // Select related listeners and match
     // And add them to config struct
-    let listeners: Vec<listener::Model> = Listener::find().all(&db).await.into_diagnostic()?;
-    let matches: Vec<Vec<ng_match::Model>> = listeners
-        .load_many_to_many(NgMatch, MatchListener, &db)
+    let listeners: Vec<(listener::Model, Vec<ng_match::Model>)> = Listener::find()
+        .find_with_related(NgMatch)
+        .all(&db)
         .await
         .into_diagnostic()?;
 
-    for (listener, ng_matches) in listeners.into_iter().zip(matches.into_iter()) {
+    for (listener, ng_matches) in listeners {
         // Convert to nginx struct
         let (ip_socket, listener) = ListenerOpts::from(&listener);
         // Append listeners and empty routes to nginx configuration
@@ -46,6 +46,7 @@ pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
             .into_diagnostic()?;
 
         for (ng_match, hosts) in ng_matches.into_iter().zip(hosts.into_iter()) {
+            // println!("{:#?}", ng_match);
             // Select related  match and action
             // And add them to config struct
             let action = ng_match
@@ -55,16 +56,23 @@ pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
                 .into_diagnostic()?;
 
             // Convert to nginx struct
-            for host in hosts {
-                let action = action.clone().map(|x| Action::from(&x));
+            let action = action.clone().map(|x| Action::from(&x));
+            let route_name = format!("jucenit_[{}]", ip_socket);
+            let route = nginx_config.routes.get_mut(&route_name);
+            let route = route.unwrap();
 
-                let route_name = format!("jucenit_[{}]", ip_socket);
-                let route = nginx_config.routes.get_mut(&route_name);
-                let route = route.unwrap();
+            if hosts.is_empty() {
                 route.push(Route {
                     action: action.clone(),
-                    match_: Match::from(&ng_match, Some(host)),
+                    match_: Match::from(&ng_match, None),
                 });
+            } else {
+                for host in hosts {
+                    route.push(Route {
+                        action: action.clone(),
+                        match_: Match::from(&ng_match, Some(host)),
+                    });
+                }
             }
         }
         // let (match, action)

@@ -3,6 +3,7 @@ use acme2::{
     Account, AccountBuilder, AuthorizationStatus, Challenge, ChallengeStatus, Csr, Directory,
     DirectoryBuilder, OrderBuilder, OrderStatus,
 };
+use serde_json::json;
 use std::time::Duration;
 // Error Handling
 use miette::{Context, Error, IntoDiagnostic, Result};
@@ -18,7 +19,7 @@ use std::io::Write;
 use uuid::Uuid;
 // Crate structs
 use super::pebble::{pebble_account, pebble_http_client, PEBBLE_CERT_URL};
-use crate::cast::{Action, Match};
+use crate::{Action, ConfigUnit, Match};
 use openssl::x509::X509;
 
 // Production url
@@ -89,31 +90,33 @@ fn make_jucenit_tls_alpn_challenge_config(dns: &str, challenge: &Challenge) -> R
 * A file at `https://example.com/.well-known/${challenge.token}`
 * with the content of `challenge.key_authorization()??`.
 */
-fn make_jucenit_http_challenge_config(dns: &str, challenge: &Challenge) -> Result<()> {
-    // ) -> Result<(Match, JuceUnit)> {
+async fn make_jucenit_http_challenge_config(
+    dns: &str,
+    challenge: &Challenge,
+) -> Result<ConfigUnit> {
     // Challenge ports
     let http_port = 80;
     let tls_port = 443;
+
     // Update nginx-unit config
-    // let match_ = Match {
-    //     uri: Some(format!(
-    //         "/.well-known/acme-challenge/{}",
-    //         challenge.token.clone().unwrap()
-    //     )),
-    //     host: Some(dns.to_owned()),
-    //     ..Match::default()
-    // };
-    // let unit = JuceUnit {
-    //     id: Some(format!("challenge_{}", dns)),
-    //     kind: UnitKind::HttpChallenge,
-    //     listeners: vec![format!("*:{}", http_port)],
-    //     action: Some(Action {
-    //         share: Some(vec![format!("/tmp/jucenit/challenge_{}.txt", dns)]),
-    //         ..Action::default()
-    //     }),
-    // };
-    // Ok((match_, unit))
-    Ok(())
+    let unit = ConfigUnit {
+        action: Some(Action {
+            raw_params: Some(json!({
+                "share": format!("/tmp/jucenit/challenge_{}.txt",dns)
+            })),
+        }),
+        listeners: vec![format!("*:{}", http_port)],
+        match_: Match {
+            hosts: Some(vec![dns.to_owned()]),
+            raw_params: Some(json!({
+                "uri": format!("/.well-known/acme-challenge/{}",
+                challenge.token.clone().unwrap())
+            })),
+        },
+        ..Default::default()
+    };
+    unit.push().await?;
+    Ok(unit)
 }
 
 /**
@@ -214,8 +217,7 @@ impl Letsencrypt {
     async fn http_challenge(dns: &str, auth: Authorization, challenge: &Challenge) -> Result<()> {
         // Create route to challenge key file
         set_challenge_key_file(dns, &challenge)?;
-        // let (match_, unit) = make_jucenit_http_challenge_config(dns, &challenge)?;
-        // JuceConfig::add_unit((match_.clone(), unit)).await?;
+        make_jucenit_http_challenge_config(dns, &challenge).await?;
 
         let challenge = challenge.validate().await.into_diagnostic()?;
         let challenge = challenge
@@ -260,8 +262,7 @@ impl Letsencrypt {
         assert_eq!(challenge.status, ChallengeStatus::Valid);
 
         // Delete route to challenge key file
-        //
-        // del_challenge_key_file(dns, &challenge)?;
+        del_challenge_key_file(dns, &challenge)?;
         // JuceConfig::del_unit(match_.clone()).await?;
 
         let authorization = auth
@@ -282,18 +283,14 @@ mod tests {
     use miette::Result;
 
     /**
-     * Set a fresh testing environment
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
      */
     async fn set_testing_config() -> Result<()> {
-        // Clean config and certificate store
         CertificateStore::clean().await?;
-        // JuceConfig::set(&JuceConfig::default()).await?;
-
-        // Set new configuration
         let config_file = ConfigFile::load("../examples/jucenit.toml")?;
-        // let juce_config = JuceConfig::from(&config_file);
-        // JuceConfig::set(&juce_config).await?;
-
+        config_file.set().await?;
         Ok(())
     }
 
@@ -327,7 +324,6 @@ mod tests {
         let dns = "example.com";
         let account = pebble_account().await?.clone();
         let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
-        // println!("{:#?}", res);
         Ok(())
     }
 }
