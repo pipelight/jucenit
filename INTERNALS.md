@@ -120,7 +120,14 @@ classDiagram
     }
 ```
 
+The column `raw_params` are the nginx-unit arguments stored as json.
+
+Because nginx-unit and jucenit will evolve for the better, and for the sake of simplicity,
+their is no strong mapping between jucenit and nginx through clearly defined rust Structs(type definitions).
+Consequences are that jucenit will always accept arguments that are accepted by nginx-unit
+without the need to update jucenit internals Structs.
+
 ### Auto Ssl (tls certificate management)
 
-Relate on a slighty modified version of [acme2](https://docs.rs/acme2/latest/acme2/) crate, which is
-[pipelight-acme2](https://github.com/pipelight/acme2).
+Relate on a slighty modified version of [acme2](https://docs.rs/acme2/latest/acme2/) crate,
+which is [pipelight-acme2](https://github.com/pipelight/acme2).
