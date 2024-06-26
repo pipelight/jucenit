@@ -36,12 +36,6 @@ impl ConfigFile {
         }
         Ok(())
     }
-    pub async fn remove_from_db(&self) -> Result<()> {
-        for unit in &self.unit {
-            unit.remove_from_db().await?;
-        }
-        Ok(())
-    }
     /**
      * Push file to database
      * and update nginx
@@ -69,120 +63,21 @@ impl ConfigUnit {
         nginx_config.set().await?;
         Ok(())
     }
-    pub async fn remove_from_db(&self) -> Result<()> {
-        let unit = self;
-        let db = connect_db().await?;
-
-        // Remove action
-        if let Some(action) = &unit.action.clone() {
-            let res = Action::find()
-                .find_also_related(NgMatch)
-                .all(&db)
-                .await
-                .into_diagnostic()?;
-            // println!("{:#?}", res);
-            for (action, match_) in res {
-                if let Some(match_) = match_ {
-                    // If match has one or multiple hosts
-                    if let Some(hosts) = &unit.match_.hosts {
-                        let hosts_linked = match_
-                            .find_related(Host)
-                            .filter(Condition::all().add(host::Column::Domain.is_in(hosts)))
-                            .all(&db)
-                            .await
-                            .into_diagnostic()?;
-                        for host in hosts_linked {
-                            match_host::Entity::delete_many()
-                                .filter(
-                                    Condition::all()
-                                        .add(match_host::Column::HostId.eq(host.id))
-                                        .add(match_host::Column::MatchId.eq(match_.id)),
-                                )
-                                .exec(&db)
-                                .await
-                                .into_diagnostic()?;
-                        }
-                    // If match has no hosts
-                    } else {
-                        let res = Action::find()
-                            .find_also_related(NgMatch)
-                            .one(&db)
-                            .await
-                            .into_diagnostic()?;
-                        if let Some((action, match_)) = res {
-                            if let Some(match_) = match_ {}
-                        }
-                    }
-                }
-            }
-        }
-
-        // Remove match
-        // If unit match apply to specific hosts
-        if let Some(hosts) = &unit.match_.hosts {
-            let select =
-                NgMatch::find().find_with_related(Host).filter(
-                    Condition::all()
-                        // same hosts
-                        .add(host::Column::Domain.is_in(hosts))
-                        // and same params
-                        .add(ng_match::Column::RawParams.like(
-                            serde_json::to_string(&unit.match_.raw_params).into_diagnostic()?,
-                        )),
-                );
-            let res = select.all(&db).await.into_diagnostic()?;
-            // println!("{:#?}", res);
-            // If host has no other match related
-            let matches_: Vec<ng_match::Model> = res.iter().map(|(x, _)| x.to_owned()).collect();
-            for (match_, hosts) in res {
-                // match_.delete(&db).await.into_diagnostic()?;
-                // for host in hosts {
-                //     let res = Host::find()
-                //         .find_with_related(NgMatch)
-                //         .all(&db)
-                //         .await
-                //         .into_diagnostic()?;
-                //     println!("{:#?}", res);
-                // }
-            }
-
-            // If unit match applies to every hosts (hosts unspecified)
-        } else {
-            let select = NgMatch::find().filter(
-                Condition::all().add(
-                    ng_match::Column::RawParams
-                        .like(serde_json::to_string(&unit.match_.raw_params).into_diagnostic()?),
-                ),
-            );
-            let ng_matches = select.all(&db).await.into_diagnostic()?;
-            // println!("{:#?}", ng_matches);
-        }
-
-        // Remove action
-        // if let Some(action) = &unit.action {
-        //     let action = Action::delete_many()
-        //         .filter(
-        //             action::Column::RawParams
-        //                 .like(serde_json::to_string(&action.raw_params).into_diagnostic()?),
-        //         )
-        //         .exec(&db)
-        //         .await
-        //         .into_diagnostic()?;
-        // }
-        //
-        Ok(())
-    }
     pub async fn push_to_db(&self) -> Result<()> {
         let unit = self;
         let db = connect_db().await?;
+
         // Insert Action
-        let mut action = None;
+        let mut action: Option<action::ActiveModel> = None;
         if let Some(a) = &unit.action.clone() {
+            let action_value: action::ActiveModel;
             let raw_params: Option<String> = a.clone().raw_params.map(|x| x.to_string());
+
             let a = action::ActiveModel {
                 raw_params: ActiveValue::Set(raw_params.clone()),
                 ..Default::default()
             };
+
             let res = Action::insert(a)
                 .on_conflict(
                     OnConflict::column(action::Column::RawParams)
@@ -192,8 +87,9 @@ impl ConfigUnit {
                 .exec_with_returning(&db)
                 .await
                 .into_diagnostic();
+
             // Populate entities with ids
-            action = match res {
+            action = Some(match res {
                 Ok(model) => model.into(),
                 Err(e) => {
                     // debug!("{}", e);
@@ -207,22 +103,21 @@ impl ConfigUnit {
                         .into();
                     model
                 }
-            };
+            });
         }
 
         // Insert Match
         let raw_params: Option<String> = unit.match_.clone().raw_params.map(|x| x.to_string());
         let mut match_ = ng_match::ActiveModel {
             raw_params: ActiveValue::Set(raw_params.clone()),
-            action_id: ActiveValue::Set(action.map(|x| x.id)),
             ..Default::default()
         };
         let res = NgMatch::insert(match_)
-            // .on_conflict(
-            //     OnConflict::column(ng_match::Column::RawParams)
-            //         .do_nothing()
-            //         .to_owned(),
-            // )
+            .on_conflict(
+                OnConflict::column(ng_match::Column::RawParams)
+                    .do_nothing()
+                    .to_owned(),
+            )
             .exec_with_returning(&db)
             .await
             .into_diagnostic();
@@ -279,7 +174,6 @@ impl ConfigUnit {
 
         // Join Match and Listener
         assert!(!&listeners.is_empty());
-
         let mut list: Vec<match_listener::ActiveModel> = vec![];
         for listener in listeners {
             let match_listener = match_listener::ActiveModel {
@@ -301,6 +195,27 @@ impl ConfigUnit {
             .exec(&db)
             .await
             .into_diagnostic()?;
+
+        // Join Match and Action
+        if let Some(action) = action {
+            let match_action = match_action::ActiveModel {
+                match_id: match_.id.clone(),
+                action_id: action.id.clone(),
+            };
+            Action::insert(action)
+                .on_conflict(
+                    OnConflict::columns(vec![
+                        match_listener::Column::MatchId,
+                        match_listener::Column::ListenerId,
+                    ])
+                    .do_nothing()
+                    .to_owned(),
+                )
+                .do_nothing()
+                .exec(&db)
+                .await
+                .into_diagnostic()?;
+        }
 
         // Insert Hosts
         if unit.match_.hosts.is_some() {
@@ -364,86 +279,6 @@ impl ConfigUnit {
 }
 
 #[cfg(test)]
-mod mock {
-    use crate::ConfigFile;
-    use entity::{prelude::*, *};
-    use sea_orm::{prelude::*, ActiveValue, MockDatabase};
-    // Error Handling
-    use miette::{IntoDiagnostic, Result};
-
-    async fn prepare_mock_db() -> Result<DatabaseConnection> {
-        let db: DatabaseConnection = MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
-            // Add listeners
-            .append_query_results([vec![
-                listener::Model {
-                    id: 1,
-                    ip_socket: "*:443".to_owned(),
-                    tls: None,
-                },
-                listener::Model {
-                    id: 2,
-                    ip_socket: "*:587".to_owned(),
-                    tls: None,
-                },
-                listener::Model {
-                    id: 3,
-                    ip_socket: "*:993".to_owned(),
-                    tls: None,
-                },
-            ]])
-            .into_connection();
-        Ok(db)
-    }
-
-    #[tokio::test]
-    async fn find_all_listeners() -> Result<()> {
-        let db = prepare_mock_db().await?;
-
-        // Test db querying and joint
-        let all_listeners: Vec<listener::Model> =
-            Listener::find().all(&db).await.into_diagnostic()?;
-        assert_eq!(
-            all_listeners,
-            vec![
-                listener::Model {
-                    id: 1,
-                    ip_socket: "*:443".to_owned(),
-                    tls: None
-                },
-                listener::Model {
-                    id: 2,
-                    ip_socket: "*:587".to_owned(),
-                    tls: None
-                },
-                listener::Model {
-                    id: 3,
-                    ip_socket: "*:993".to_owned(),
-                    tls: None
-                },
-            ]
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn find_one_listener() -> Result<()> {
-        let db = prepare_mock_db().await?;
-
-        let listener: Option<listener::Model> =
-            Listener::find_by_id(1).one(&db).await.into_diagnostic()?;
-        assert_eq!(
-            listener,
-            Some(listener::Model {
-                id: 1,
-                ip_socket: "*:443".to_owned(),
-                tls: None
-            })
-        );
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 mod test {
     use crate::database::{connect_db, fresh_db};
     use crate::{ConfigFile, Match};
@@ -455,7 +290,7 @@ mod test {
     use miette::{IntoDiagnostic, Result};
 
     async fn set_default_config() -> Result<()> {
-        // let db = fresh_db().await?;
+        let db = fresh_db().await?;
         // Get struct from config
         let toml = "
             [[unit]]

@@ -95,7 +95,10 @@ mod tests {
         };
         let match_ = ng_match::Model {
             id: 7,
-            action_id: Some(2),
+            raw_params: None,
+        };
+        let action = action::Model {
+            id: 2,
             raw_params: None,
         };
         let expect = Match {

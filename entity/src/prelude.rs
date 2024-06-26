@@ -3,6 +3,7 @@
 pub use super::action::Entity as Action;
 pub use super::host::Entity as Host;
 pub use super::listener::Entity as Listener;
+pub use super::match_action::Entity as MatchAction;
 pub use super::match_host::Entity as MatchHost;
 pub use super::match_listener::Entity as MatchListener;
 pub use super::ng_match::Entity as NgMatch;

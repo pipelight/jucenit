@@ -13,13 +13,22 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::ng_match::Entity")]
-    NgMatch,
+    #[sea_orm(has_many = "super::match_action::Entity")]
+    MatchAction,
+}
+
+impl Related<super::match_action::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MatchAction.def()
+    }
 }
 
 impl Related<super::ng_match::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::NgMatch.def()
+        super::match_action::Relation::NgMatch.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::match_action::Relation::Action.def().rev())
     }
 }
 
