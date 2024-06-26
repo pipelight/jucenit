@@ -127,7 +127,7 @@ impl ConfigUnit {
             Ok(model) => model.into(),
             Err(e) => {
                 // debug!("{}", e);
-                println!("{}", e);
+                // println!("{}", e);
                 println!("{:#?}", raw_params);
                 let model = NgMatch::find()
                     .filter(ng_match::Column::RawParams.eq(raw_params.unwrap()))
@@ -202,17 +202,17 @@ impl ConfigUnit {
                 match_id: match_.id.clone(),
                 action_id: action.id.clone(),
             };
-            Action::insert(action)
+            MatchAction::insert(match_action)
                 .on_conflict(
                     OnConflict::columns(vec![
-                        match_listener::Column::MatchId,
-                        match_listener::Column::ListenerId,
+                        match_action::Column::MatchId,
+                        match_action::Column::ActionId,
                     ])
                     .do_nothing()
                     .to_owned(),
                 )
                 .do_nothing()
-                .exec(&db)
+                .exec_without_returning(&db)
                 .await
                 .into_diagnostic()?;
         }
