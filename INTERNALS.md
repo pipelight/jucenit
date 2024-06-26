@@ -114,7 +114,7 @@ classDiagram
         +int id_match
         +int id_listener
     }
-    class MacthAction {
+    class MatchAction {
         +int id_match
         +int id_action
     }
