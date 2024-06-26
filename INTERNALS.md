@@ -81,16 +81,28 @@ Every relations are many to many through a relation table.
 
 ```mermaid
 classDiagram
-    Match <|-- MatchAction
-    MatchAction <|-- Action
+    Match <|-- MatchListener
+    MatchListener <|-- Listener
 
     Match <|-- MatchHost
     MatchHost <|-- Host
 
-    Match <|-- MatchListener
-    MatchListener <|-- Listener
+    Match <|-- MatchAction
+    MatchAction <|-- Action
 
+    class Host {
+        +int id
+        +String domain
+    }
     class Match {
+        +int id
+        +String raw_params
+    }
+     class Listener {
+        +int id
+        +String raw_params
+    }
+    class Action {
         +int id
         +String raw_params
     }
@@ -98,21 +110,9 @@ classDiagram
         +int id_match
         +int id_host
     }
-    class Host {
-        +int id
-        +String raw_params
-    }
-    class Listener {
-        +int id
-        +String raw_params
-    }
     class MatchListener {
         +int id_match
         +int id_listener
-    }
-    class Action {
-        +int id
-        +String raw_params
     }
     class MacthAction {
         +int id_match
