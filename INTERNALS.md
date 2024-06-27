@@ -60,6 +60,7 @@ classDiagram
     Match <|-- Action
     Match <|-- Host
     Match <|-- Listener
+
     class Match {
         raw_parameters
     }
@@ -87,8 +88,7 @@ classDiagram
     Match <|-- MatchHost
     MatchHost <|-- Host
 
-    Match <|-- MatchAction
-    MatchAction <|-- Action
+    Match <|-- Action
 
     class Host {
         +int id
@@ -96,6 +96,8 @@ classDiagram
     }
     class Match {
         +int id
+        +int uuid
+        +int action_id
         +String raw_params
     }
      class Listener {
@@ -113,10 +115,6 @@ classDiagram
     class MatchListener {
         +int id_match
         +int id_listener
-    }
-    class MatchAction {
-        +int id_match
-        +int id_action
     }
 ```
 
