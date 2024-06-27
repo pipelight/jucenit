@@ -1,10 +1,9 @@
 // Database
 use crate::database::{connect_db, fresh_db};
-use crate::nginx::db_into_nginx_conf;
-use crate::{ConfigFile, ConfigUnit};
+use crate::{ConfigFile, ConfigUnit, NginxConfig};
 // Sea orm
 // use indexmap::IndexMap;
-use entity::{prelude::*, *};
+use crate::database::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
     prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase,
@@ -42,7 +41,7 @@ impl ConfigFile {
      */
     pub async fn push(&self) -> Result<()> {
         self.push_to_db().await?;
-        let nginx_config = db_into_nginx_conf().await?;
+        let nginx_config = NginxConfig::pull().await?;
         nginx_config.set().await?;
         Ok(())
     }
@@ -51,7 +50,7 @@ impl ConfigFile {
      */
     pub async fn set(&self) -> Result<()> {
         self.push_to_fresh_db().await?;
-        let nginx_config = db_into_nginx_conf().await?;
+        let nginx_config = NginxConfig::pull().await?;
         nginx_config.set().await?;
         Ok(())
     }
@@ -59,7 +58,7 @@ impl ConfigFile {
 impl ConfigUnit {
     pub async fn push(&self) -> Result<()> {
         self.push_to_db().await?;
-        let nginx_config = db_into_nginx_conf().await?;
+        let nginx_config = NginxConfig::pull().await?;
         nginx_config.set().await?;
         Ok(())
     }
@@ -273,9 +272,9 @@ impl ConfigUnit {
 
 #[cfg(test)]
 mod test {
+    use crate::database::entity::{prelude::*, *};
     use crate::database::{connect_db, fresh_db};
-    use crate::{ConfigFile, Match};
-    use entity::{prelude::*, *};
+    use crate::{ConfigFile, Match, NginxConfig};
     use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
     // Logging
     use tracing::{debug, Level};
@@ -312,7 +311,7 @@ mod test {
         ";
         let config = ConfigFile::from_toml_str(toml)?;
         config.push().await?;
-        let nginx_config = crate::nginx::db_into_nginx_conf().await?;
+        let nginx_config = NginxConfig::pull().await?;
         // println!("{:#?}", nginx_config);
         Ok(())
     }
@@ -326,24 +325,6 @@ mod test {
     #[tokio::test]
     async fn seed_db() -> Result<()> {
         set_default_config().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn remove_unit_by_uuid() -> Result<()> {
-        set_default_config().await?;
-        let toml = "
-        [[unit]]
-        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
-        listeners = ['*:443']
-        [unit.match]
-        hosts = ['test.com', 'example.com']
-        [unit.action]
-        proxy = 'http://127.0.0.1:8333'
-        ";
-        let config = ConfigFile::from_toml_str(toml)?;
-        config.remove_from_db().await?;
-        let nginx_config = crate::nginx::db_into_nginx_conf().await?;
         Ok(())
     }
 }

@@ -6,5 +6,4 @@ members = [
   "jucenit_core", # requests to nginx API
   "utils",        # fs,proc manipulation
   "migration",    # generate database
-  "entity",       # database
 ]

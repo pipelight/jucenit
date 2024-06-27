@@ -77,8 +77,8 @@ impl Config {
     /**
     Returns a jucenit configuration from a provided toml string.
     */
-    pub fn from_toml_str(toml: &str) -> Result<Config> {
-        let res = toml::from_str::<Config>(&toml);
+    pub fn from_toml_str(toml: &str) -> Result<Self> {
+        let res = toml::from_str::<Self>(&toml);
         match res {
             Ok(res) => Ok(res),
             Err(e) => {
@@ -105,6 +105,19 @@ impl Config {
             }
         }
     }
+    /**
+    Returns a jucenit configuration from a provided yaml string.
+    */
+    pub fn from_yaml_str(yml: &str) -> Result<Self> {
+        let res = serde_yaml::from_str::<Self>(&yml);
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                let err = YamlError::new(e, &yml);
+                Err(err.into())
+            }
+        }
+    }
     pub fn to_yaml(&self) -> Result<String> {
         let res = serde_yaml::to_string(self).into_diagnostic();
         res
@@ -122,7 +135,34 @@ pub struct Unit {
     pub match_: Match,
     pub listeners: Vec<String>,
 }
-
+impl Unit {
+    /**
+    Returns a jucenit configuration from a provided toml string.
+    */
+    pub fn from_toml_str(toml: &str) -> Result<Self> {
+        let res = toml::from_str::<Self>(&toml);
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                let err = TomlError::new(e, toml);
+                Err(err.into())
+            }
+        }
+    }
+    /**
+    Returns a jucenit configuration from a provided yaml string.
+    */
+    pub fn from_yaml_str(yml: &str) -> Result<Self> {
+        let res = serde_yaml::from_str::<Self>(&yml);
+        match res {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                let err = YamlError::new(e, &yml);
+                Err(err.into())
+            }
+        }
+    }
+}
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Action {
     // Reverse proxy

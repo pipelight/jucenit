@@ -40,14 +40,16 @@ impl MigrationTrait for Migration {
                             .name("fk-match_id")
                             .from(MatchListener::Table, MatchListener::MatchId)
                             .to(NgMatch::Table, NgMatch::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-listener_id")
                             .from(MatchListener::Table, MatchListener::ListenerId)
-                            .to(Listener::Table, Listener::Id),
+                            .to(Listener::Table, Listener::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -70,7 +72,7 @@ impl MigrationTrait for Migration {
                             .name("fk-match_id")
                             .from(MatchHost::Table, MatchHost::MatchId)
                             .to(NgMatch::Table, NgMatch::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
@@ -78,7 +80,7 @@ impl MigrationTrait for Migration {
                             .name("fk-host_id")
                             .from(MatchHost::Table, MatchHost::HostId)
                             .to(Host::Table, Host::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),

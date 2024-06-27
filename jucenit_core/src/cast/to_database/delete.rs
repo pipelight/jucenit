@@ -1,10 +1,9 @@
 // Database
 use crate::database::{connect_db, fresh_db};
-use crate::nginx::db_into_nginx_conf;
-use crate::{ConfigFile, ConfigUnit};
+use crate::{ConfigFile, ConfigUnit, NginxConfig};
 // Sea orm
 // use indexmap::IndexMap;
-use entity::{prelude::*, *};
+use crate::database::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
     prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase,
@@ -16,6 +15,12 @@ use tracing::{debug, Level};
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 impl ConfigFile {
+    pub async fn remove(&self) -> Result<()> {
+        self.remove_from_db().await?;
+        let nginx_config = NginxConfig::pull().await?;
+        nginx_config.set().await?;
+        Ok(())
+    }
     pub async fn remove_from_db(&self) -> Result<()> {
         for unit in &self.unit {
             unit.remove_from_db().await?;
@@ -28,103 +33,129 @@ impl ConfigUnit {
         let unit = self;
         let db = connect_db().await?;
 
-        // Remove action
-        if let Some(action) = &unit.action.clone() {
-            let res = Action::find()
-                .find_also_related(NgMatch)
+        let match_ = NgMatch::find()
+            .filter(Condition::all().add(ng_match::Column::Uuid.eq(&unit.uuid)))
+            .one(&db)
+            .await
+            .into_diagnostic()?;
+        let match_ = match_.unwrap();
+
+        let hosts = match_.find_related(Host).all(&db).await.into_diagnostic()?;
+        for host in hosts {
+            // Delete host if not linked to other matches.
+            if host
+                .find_related(NgMatch)
+                .filter(
+                    Condition::all()
+                        .not()
+                        .add(ng_match::Column::Uuid.eq(&unit.uuid)),
+                )
                 .all(&db)
                 .await
-                .into_diagnostic()?;
-            // println!("{:#?}", res);
-            for (action, match_) in res {
-                if let Some(match_) = match_ {
-                    // If match has one or multiple hosts
-                    if let Some(hosts) = &unit.match_.hosts {
-                        let hosts_linked = match_
-                            .find_related(Host)
-                            .filter(Condition::all().add(host::Column::Domain.is_in(hosts)))
-                            .all(&db)
-                            .await
-                            .into_diagnostic()?;
-                        for host in hosts_linked {
-                            match_host::Entity::delete_many()
-                                .filter(
-                                    Condition::all()
-                                        .add(match_host::Column::HostId.eq(host.id))
-                                        .add(match_host::Column::MatchId.eq(match_.id)),
-                                )
-                                .exec(&db)
-                                .await
-                                .into_diagnostic()?;
-                        }
-                    // If match has no hosts
-                    } else {
-                        let res = Action::find()
-                            .find_also_related(NgMatch)
-                            .one(&db)
-                            .await
-                            .into_diagnostic()?;
-                        if let Some((action, match_)) = res {
-                            if let Some(match_) = match_ {}
-                        }
-                    }
-                }
+                .into_diagnostic()?
+                .is_empty()
+            {
+                host.delete(&db).await.into_diagnostic()?;
             }
         }
+        let action = match_
+            .find_related(Action)
+            .one(&db)
+            .await
+            .into_diagnostic()?;
+        let action = action.unwrap();
 
-        // Remove match
-        // If unit match apply to specific hosts
-        if let Some(hosts) = &unit.match_.hosts {
-            let select =
-                NgMatch::find().find_with_related(Host).filter(
-                    Condition::all()
-                        // same hosts
-                        .add(host::Column::Domain.is_in(hosts))
-                        // and same params
-                        .add(ng_match::Column::RawParams.like(
-                            serde_json::to_string(&unit.match_.raw_params).into_diagnostic()?,
-                        )),
-                );
-            let res = select.all(&db).await.into_diagnostic()?;
-            // println!("{:#?}", res);
-            // If host has no other match related
-            let matches_: Vec<ng_match::Model> = res.iter().map(|(x, _)| x.to_owned()).collect();
-            for (match_, hosts) in res {
-                // match_.delete(&db).await.into_diagnostic()?;
-                // for host in hosts {
-                //     let res = Host::find()
-                //         .find_with_related(NgMatch)
-                //         .all(&db)
-                //         .await
-                //         .into_diagnostic()?;
-                //     println!("{:#?}", res);
-                // }
-            }
-
-            // If unit match applies to every hosts (hosts unspecified)
-        } else {
-            let select = NgMatch::find().filter(
-                Condition::all().add(
-                    ng_match::Column::RawParams
-                        .like(serde_json::to_string(&unit.match_.raw_params).into_diagnostic()?),
-                ),
-            );
-            let ng_matches = select.all(&db).await.into_diagnostic()?;
-            // println!("{:#?}", ng_matches);
+        // Delete action if not linked to other matches.
+        if action
+            .find_related(NgMatch)
+            .filter(
+                Condition::all()
+                    .not()
+                    .add(ng_match::Column::Uuid.eq(&unit.uuid)),
+            )
+            .all(&db)
+            .await
+            .into_diagnostic()?
+            .is_empty()
+        {
+            action.delete(&db).await.into_diagnostic()?;
         }
 
-        // Remove action
-        // if let Some(action) = &unit.action {
-        //     let action = Action::delete_many()
-        //         .filter(
-        //             action::Column::RawParams
-        //                 .like(serde_json::to_string(&action.raw_params).into_diagnostic()?),
-        //         )
-        //         .exec(&db)
-        //         .await
-        //         .into_diagnostic()?;
-        // }
-        //
+        match_.delete(&db).await.into_diagnostic()?;
+
+        Ok(())
+    }
+}
+#[cfg(test)]
+mod test {
+    use crate::database::entity::{prelude::*, *};
+    use crate::database::{connect_db, fresh_db};
+    use crate::{ConfigFile, Match, Nginx, NginxConfig};
+    use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
+    // Logging
+    use tracing::{debug, Level};
+    // Error Handling
+    use miette::{IntoDiagnostic, Result};
+
+    async fn set_default_config() -> Result<()> {
+        let db = fresh_db().await?;
+        // Get struct from config
+        let toml = "
+        [[unit]]
+        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com', 'example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
+
+        [[unit]]
+        uuid = '70372c19-cb64-4f18-9c54-7bac10112b95'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:1337'
+
+        [[unit]]
+        uuid = 'd462482d-21f7-48d6-8360-528f9e664c2f'
+        listeners = ['*:443']
+        [unit.match]
+        uri = ['/home']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
+
+        [[unit]]
+        uuid = 'cc4e626a-9354-480e-a78b-f9f845148984'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['api.example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8222'
+        ";
+        let config = ConfigFile::from_toml_str(toml)?;
+        config.push().await?;
+        let nginx_config = NginxConfig::pull().await?;
+        println!("{:#?}", nginx_config);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn remove_unit_by_uuid() -> Result<()> {
+        set_default_config().await?;
+        let toml = "
+        [[unit]]
+        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com', 'example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
+        ";
+        let config = ConfigFile::from_toml_str(toml)?;
+        config.remove().await?;
+        // let nginx_config = NginxConfig::pull().await?;
+        // println!("{:#?}", nginx_config);
         Ok(())
     }
 }

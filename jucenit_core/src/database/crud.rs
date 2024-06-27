@@ -13,7 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 // Sea orm
 // use indexmap::IndexMap;
-use entity::{prelude::*, *};
+use super::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
 use sea_orm::{Database, DatabaseConnection};

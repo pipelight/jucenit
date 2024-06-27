@@ -4,7 +4,7 @@ use crate::{
 };
 // Database / Sea orm
 // use indexmap::IndexMap;
-use entity::*;
+use crate::database::entity::{prelude::*, *};
 use indexmap::IndexMap;
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
@@ -65,7 +65,7 @@ mod tests {
     use serde_json::json;
     use uuid::{uuid, Uuid};
     // SeaOrm
-    use entity::*;
+    use crate::database::entity::{prelude::*, *};
     use sea_orm::{prelude::*, query::*, ActiveValue, TryIntoModel};
     // Error Handling
     use miette::{Error, IntoDiagnostic, Result, WrapErr};

@@ -162,7 +162,7 @@ impl Config {
 mod tests {
 
     use crate::cast::Config as ConfigFile;
-    use crate::nginx::{db_into_nginx_conf, Config as NginxConfig, Nginx};
+    use crate::nginx::{Config as NginxConfig, Nginx};
     use std::path::PathBuf;
     // Error handling
     use miette::{IntoDiagnostic, Result};
@@ -188,7 +188,7 @@ mod tests {
 
         let config_file = ConfigFile::load(path.to_str().unwrap())?;
         config_file.push_to_db().await?;
-        let nginx_config = db_into_nginx_conf().await?;
+        let nginx_config = NginxConfig::pull().await?;
 
         let json = serde_json::to_string_pretty(&nginx_config).into_diagnostic()?;
         println!("{}", json);

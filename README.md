@@ -10,13 +10,11 @@ Internally uses [nginx unit](https://github.com/nginx/unit).
 - **Split** your configuration across multiple files in **Toml**.
 - **Easy ssl** renewal.
 
-## How it works ?
-
-See INTERNALS.md
-
 ## Usage
 
 ### Expose services
+
+**Your configuration chunks must be uniquely identified with a mandatory uuid.**
 
 Use it as a reverse-proxy.
 
@@ -54,8 +52,6 @@ jucenit push
 jucenit push --file jucenit.toml
 ```
 
-**Your chunks must be uniquely identified with a mandatory uuid.**
-
 ### Edit the global configuration
 
 The only way to cherry remove chunks from the global configuration
@@ -84,6 +80,10 @@ Remove every certificates.
 ```sh
 jucenit ssl --clean
 ```
+
+## How it works ?
+
+See INTERNALS.md
 
 ## Install
 
