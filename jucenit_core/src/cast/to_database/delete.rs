@@ -29,6 +29,12 @@ impl ConfigFile {
     }
 }
 impl ConfigUnit {
+    pub async fn remove(&self) -> Result<()> {
+        self.remove_from_db().await?;
+        let nginx_config = NginxConfig::pull().await?;
+        nginx_config.set().await?;
+        Ok(())
+    }
     pub async fn remove_from_db(&self) -> Result<()> {
         let unit = self;
         let db = connect_db().await?;
@@ -65,7 +71,31 @@ impl ConfigUnit {
             .into_diagnostic()?;
         let action = action.unwrap();
 
+        let listeners = match_
+            .find_related(Listener)
+            .all(&db)
+            .await
+            .into_diagnostic()?;
+        for listener in listeners {
+            // Delete listeners if no related match
+            if listener
+                .find_related(NgMatch)
+                .filter(
+                    Condition::all()
+                        .not()
+                        .add(ng_match::Column::Uuid.eq(&unit.uuid)),
+                )
+                .all(&db)
+                .await
+                .into_diagnostic()?
+                .is_empty()
+            {
+                listener.delete(&db).await.into_diagnostic()?;
+            }
+        }
+
         // Delete action if not linked to other matches.
+        let mut del_action = false;
         if action
             .find_related(NgMatch)
             .filter(
@@ -78,11 +108,14 @@ impl ConfigUnit {
             .into_diagnostic()?
             .is_empty()
         {
-            action.delete(&db).await.into_diagnostic()?;
+            del_action = true;
         }
 
         match_.delete(&db).await.into_diagnostic()?;
-
+        // Delete action after match (fk constraint)
+        if del_action {
+            action.delete(&db).await.into_diagnostic()?;
+        }
         Ok(())
     }
 }

@@ -86,14 +86,11 @@ mod tests {
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        // JuceConfig::set(&JuceConfig::default()).await?;
 
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
-        let config_file = ConfigFile::load(path.to_str().unwrap())?;
-
-        // let juce_config = JuceConfig::from(&config_file);
-        // JuceConfig::set(&juce_config).await?;
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.push().await?;
 
         Ok(())
     }
@@ -101,12 +98,8 @@ mod tests {
     /**
      * Generate a new certificate and upload it to nginx-unit
      */
-    async fn gen_cert_letsencrypt(dns: &str) -> Result<()> {
-        // Uncomment to generate a pebble certificate
-        // let account = ssl::pebble::pebble_account().await?.clone();
-        // let bundle = LetsencryptCertificate::get(dns, &account).await?;
+    async fn gen_fake_cert(dns: &str) -> Result<()> {
         let bundle = FakeCertificate::get(dns)?;
-
         let res = CertificateStore::update(dns, &bundle).await?;
         Ok(())
     }
@@ -121,7 +114,7 @@ mod tests {
     #[tokio::test]
     async fn get_validity_info() -> Result<()> {
         let dns = "example.com";
-        gen_cert_letsencrypt(dns).await?;
+        gen_fake_cert(dns).await?;
         let cert = CertificateStore::get(&dns).await?;
 
         println!(

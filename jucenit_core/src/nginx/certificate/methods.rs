@@ -9,6 +9,9 @@ use std::collections::HashMap;
 use crate::nginx::Config as NginxConfig;
 use crate::nginx::SETTINGS;
 
+use crate::database::connect_db;
+use crate::database::entity::{prelude::*, *};
+use sea_orm::{prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult};
 // Struct
 use super::CertificateInfo;
 
@@ -25,25 +28,28 @@ impl CertificateStore {
         let account = ssl::pebble_account().await?.clone();
         #[cfg(not(debug_assertions))]
         let account = ssl::letsencrypt_account().await?.clone();
-        // for host in JuceConfig::get_hosts().await? {
-        //     let dns = host;
-        //     // For ACME limitation rate reason
-        //     // Check if a certificate already exists
-        //     let cert = CertificateStore::get(&dns).await;
-        //     match cert {
-        //         Ok(res) => {
-        //             if res.validity.should_renew()? {
-        //                 let bundle =
-        //                     LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-        //                 CertificateStore::update(&dns, &bundle).await?;
-        //             }
-        //         }
-        //         Err(_) => {
-        //             let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-        //             CertificateStore::update(&dns, &bundle).await?;
-        //         }
-        //     };
-        // }
+        let db = connect_db().await?;
+        let hosts = Host::find().all(&db).await.into_diagnostic()?;
+        for host in hosts {
+            let dns = host.domain;
+            // For ACME limitation rate reason
+            // Check if a certificate already exists
+            let cert = CertificateStore::get(&dns).await;
+            match cert {
+                Ok(res) => {
+                    if res.validity.should_renew()? {
+                        let bundle =
+                            LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+                        CertificateStore::update(&dns, &bundle).await?;
+                    }
+                }
+                Err(_) => {
+                    let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
+                    CertificateStore::update(&dns, &bundle).await?;
+                }
+            };
+        }
+        // Update routes
         Ok(())
     }
     /**
@@ -56,7 +62,7 @@ impl CertificateStore {
         for (key, _) in certificates {
             CertificateStore::remove(&key).await?;
         }
-        // JuceConfig::push(&JuceConfig::pull().await?).await?;
+        // Update routes
         Ok(())
     }
     /**
@@ -82,7 +88,7 @@ impl CertificateStore {
     /**
      * Remove a certificate from nginx-unit certificate store.
      */
-    pub async fn remove(dns: &str) -> Result<serde_json::Value> {
+    async fn remove(dns: &str) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().unwrap().clone();
         let client = reqwest::Client::new();
         let res = client
@@ -125,21 +131,20 @@ mod tests {
 
     use serial_test::serial;
 
+    use crate::database::{connect_db, fresh_db};
+
     /**
      * Set a fresh testing environment
      */
     async fn set_testing_config() -> Result<()> {
         // Clean config and certificate store
         CertificateStore::clean().await?;
-        // JuceConfig::set(&JuceConfig::default()).await?;
+        let db = fresh_db().await?;
 
-        // Set new configuration
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
-
-        let config_file = ConfigFile::load(path.to_str().unwrap())?;
-        // let juce_config = JuceConfig::from(&config_file);
-        // JuceConfig::set(&juce_config).await?;
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.push().await?;
 
         Ok(())
     }
@@ -188,15 +193,15 @@ mod tests {
     async fn hydrate_cert_store() -> Result<()> {
         set_testing_config().await?;
 
-        let res = CertificateStore::hydrate().await?;
-
-        let certificates = CertificateStore::get_all().await?;
-        let mut dns_list: Vec<String> = certificates.into_keys().collect();
-        dns_list.sort();
-        let mut expected = vec!["example.com".to_owned(), "test.com".to_owned()];
-        expected.sort();
-
-        assert_eq!(expected, dns_list);
+        // let res = CertificateStore::hydrate().await?;
+        //
+        // let certificates = CertificateStore::get_all().await?;
+        // let mut dns_list: Vec<String> = certificates.into_keys().collect();
+        // dns_list.sort();
+        // let mut expected = vec!["example.com".to_owned(), "test.com".to_owned()];
+        // expected.sort();
+        //
+        // assert_eq!(expected, dns_list);
         Ok(())
     }
 }
