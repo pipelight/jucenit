@@ -8,22 +8,30 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
+    pub uuid: String,
+    pub action_id: i32,
     pub raw_params: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::match_action::Entity")]
-    MatchAction,
+    #[sea_orm(
+        belongs_to = "super::action::Entity",
+        from = "Column::ActionId",
+        to = "super::action::Column::Id",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    Action,
     #[sea_orm(has_many = "super::match_host::Entity")]
     MatchHost,
     #[sea_orm(has_many = "super::match_listener::Entity")]
     MatchListener,
 }
 
-impl Related<super::match_action::Entity> for Entity {
+impl Related<super::action::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MatchAction.def()
+        Relation::Action.def()
     }
 }
 
@@ -36,15 +44,6 @@ impl Related<super::match_host::Entity> for Entity {
 impl Related<super::match_listener::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MatchListener.def()
-    }
-}
-
-impl Related<super::action::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::match_action::Relation::Action.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::match_action::Relation::NgMatch.def().rev())
     }
 }
 

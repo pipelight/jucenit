@@ -1,18 +1,24 @@
 # A merge of config files: example.com and test.com
 [[unit]]
-listeners = ["*:443"]
-
+uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+listeners = ['*:443']
 [unit.match]
-hosts = ["example.com"]
-
+hosts = ['test.com', 'example.com']
 [unit.action]
-proxy = "http://127.0.0.1:9080"
+proxy = 'http://127.0.0.1:8333'
 
 [[unit]]
-listeners = ["*:443"]
-
+uuid = 'd462482d-21f7-48d6-8360-528f9e664c2f'
+listeners = ['*:443']
 [unit.match]
-hosts = ["test.com"]
-
+uri = ['/home']
 [unit.action]
-proxy = "http://127.0.0.1:8333"
+proxy = 'http://127.0.0.1:8333'
+
+[[unit]]
+uuid = 'cc4e626a-9354-480e-a78b-f9f845148984'
+listeners = ['*:443']
+[unit.match]
+hosts = ['api.example.com']
+[unit.action]
+proxy = 'http://127.0.0.1:8222'

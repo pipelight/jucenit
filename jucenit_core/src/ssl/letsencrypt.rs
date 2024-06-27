@@ -101,17 +101,21 @@ async fn make_jucenit_http_challenge_config(
     // Update nginx-unit config
     let unit = ConfigUnit {
         action: Some(Action {
-            raw_params: Some(json!({
-                "share": format!("/tmp/jucenit/challenge_{}.txt",dns)
-            })),
+            raw_params: Some(
+                json!({
+                    "share": format!("/tmp/jucenit/challenge_{}.txt",dns)
+                }), // .to_string(),
+            ),
         }),
         listeners: vec![format!("*:{}", http_port)],
         match_: Match {
             hosts: Some(vec![dns.to_owned()]),
-            raw_params: Some(json!({
-                "uri": format!("/.well-known/acme-challenge/{}",
-                challenge.token.clone().unwrap())
-            })),
+            raw_params: Some(
+                json!({
+                    "uri": format!("/.well-known/acme-challenge/{}",
+                    challenge.token.clone().unwrap())
+                }), // .to_string(),
+            ),
         },
         ..Default::default()
     };

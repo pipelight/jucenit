@@ -17,8 +17,8 @@ pub enum Relation {
         belongs_to = "super::listener::Entity",
         from = "Column::ListenerId",
         to = "super::listener::Column::Id",
-        on_update = "Cascade",
-        on_delete = "SetNull"
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
     Listener,
     #[sea_orm(

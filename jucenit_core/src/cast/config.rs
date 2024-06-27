@@ -116,6 +116,7 @@ impl Config {
 pub struct Unit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+    pub uuid: String,
     pub action: Option<Action>,
     #[serde(rename = "match")]
     pub match_: Match,
@@ -160,16 +161,14 @@ mod tests {
     #[test]
     fn get_from_toml_string() -> Result<()> {
         let toml = "
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            hosts = ['test.com']
-            uri = '/site'
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-        ";
+        [[unit]]
+        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com', 'example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
+       ";
         let res = ConfigFile::from_toml_str(toml)?;
         println!("{:#?}", res);
         Ok(())

@@ -13,6 +13,7 @@ use sea_orm::{Database, DatabaseConnection};
 use tracing::{debug, Level};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
+use uuid::{uuid, Uuid};
 
 use super::Route;
 
@@ -49,10 +50,7 @@ impl Match {
 impl Action {
     pub fn from(e: &action::Model) -> Action {
         let action = Action {
-            raw_params: e
-                .raw_params
-                .clone()
-                .map(|x| serde_json::from_str(&x).unwrap()),
+            raw_params: serde_json::from_str(&e.raw_params).unwrap(),
         };
         action
     }
@@ -64,8 +62,11 @@ mod tests {
         nginx::config::crud::{Action, ListenerOpts, Match},
         ConfigFile, ConfigUnit,
     };
+    use serde_json::json;
+    use uuid::{uuid, Uuid};
     // SeaOrm
     use entity::*;
+    use sea_orm::{prelude::*, query::*, ActiveValue, TryIntoModel};
     // Error Handling
     use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
@@ -89,34 +90,45 @@ mod tests {
     }
     #[test]
     fn convert_match() -> Result<()> {
-        let host = host::Model {
-            id: 9,
-            domain: "example.com".to_owned(),
+        let host = host::ActiveModel {
+            id: ActiveValue::Set(9),
+            domain: ActiveValue::Set("example.com".to_owned()),
         };
-        let match_ = ng_match::Model {
-            id: 7,
-            raw_params: None,
+        let action = action::ActiveModel {
+            id: ActiveValue::Set(2),
+            // raw_params: ActiveValue::Set("{}".to_owned()),
+            ..Default::default()
         };
-        let action = action::Model {
-            id: 2,
-            raw_params: None,
+        let match_ = ng_match::ActiveModel {
+            id: ActiveValue::Set(7),
+            uuid: ActiveValue::Set(Uuid::new_v4().to_string()),
+            raw_params: ActiveValue::Set(None),
+            // raw_params: ActiveValue::Set("{}".to_owned()),
+            action_id: ActiveValue::Set(2),
         };
+
         let expect = Match {
             host: Some("example.com".to_owned()),
             raw_params: None,
         };
-        let res = Match::from(&match_, Some(host));
+        let res = Match::from(
+            &match_.try_into_model().into_diagnostic()?,
+            Some(host.try_into_model().into_diagnostic()?),
+        );
         assert_eq!(expect, res);
         Ok(())
     }
     #[test]
     fn convert_action() -> Result<()> {
-        let action = action::Model {
-            id: 8,
-            raw_params: None,
+        let action = action::ActiveModel {
+            id: ActiveValue::Set(2),
+            raw_params: ActiveValue::Set(json!("{}").to_string()),
+            ..Default::default()
         };
-        let expect = Action { raw_params: None };
-        let res = Action::from(&action);
+        let expect = Action {
+            raw_params: Some(json!("{}")),
+        };
+        let res = Action::from(&action.try_into_model().into_diagnostic()?);
         assert_eq!(expect, res);
         Ok(())
     }

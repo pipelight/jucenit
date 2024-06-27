@@ -1,4 +1,5 @@
 [[unit]]
+uuid = "myuuid"
 listeners = ["*:443"]
 
 [unit.match]

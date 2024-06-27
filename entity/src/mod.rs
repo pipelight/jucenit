@@ -5,7 +5,6 @@ pub mod prelude;
 pub mod action;
 pub mod host;
 pub mod listener;
-pub mod match_action;
 pub mod match_host;
 pub mod match_listener;
 pub mod ng_match;

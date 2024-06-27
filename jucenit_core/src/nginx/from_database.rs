@@ -6,7 +6,9 @@ use crate::{ConfigFile, ConfigUnit, NginxConfig};
 use crate::database::connect_db;
 use entity::{prelude::*, *};
 use migration::{MatchHost, MatchListener, Migrator, MigratorTrait};
-use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
+use sea_orm::{
+    prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase,
+};
 use sea_orm::{Database, DatabaseConnection};
 // Logging
 use tracing::{debug, Level};
@@ -14,9 +16,7 @@ use tracing::{debug, Level};
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
-    // Connect to database to retrieve config
     let db = connect_db().await?;
-
     let mut nginx_config = NginxConfig::default();
 
     // Select related listeners and match
@@ -26,35 +26,29 @@ pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
         .all(&db)
         .await
         .into_diagnostic()?;
-
-    for (listener, ng_matches) in listeners {
-        // Convert to nginx struct
+    for (listener, matches) in listeners {
+        // Append listeners and routes to nginx configuration
         let (ip_socket, listener) = ListenerOpts::from(&listener);
-        // Append listeners and empty routes to nginx configuration
         nginx_config
             .listeners
             .insert(ip_socket.clone(), listener.clone());
-
         let route_name = format!("jucenit_[{}]", ip_socket);
         nginx_config.routes.insert(route_name.clone(), vec![]);
 
         // Select related  match and hosts
-        // And add them to config struct
-        let hosts: Vec<Vec<host::Model>> = ng_matches
-            .load_many_to_many(Host, MatchHost, &db)
+        let matches: Vec<(ng_match::Model, Vec<host::Model>)> = NgMatch::find()
+            .find_with_related(Host)
+            .filter(Condition::all().add(ng_match::Column::Id.is_in(matches.iter().map(|x| x.id))))
+            .all(&db)
             .await
             .into_diagnostic()?;
 
-        for (ng_match, hosts) in ng_matches.into_iter().zip(hosts.into_iter()) {
-            // println!("{:#?}", ng_match);
-            // Select related  match and action
-            // And add them to config struct
-            let action = ng_match
+        for (match_, hosts) in &matches {
+            let action = match_
                 .find_related(Action)
                 .one(&db)
                 .await
                 .into_diagnostic()?;
-
             // Convert to nginx struct
             let action = action.clone().map(|x| Action::from(&x));
             let route_name = format!("jucenit_[{}]", ip_socket);
@@ -64,18 +58,17 @@ pub async fn db_into_nginx_conf() -> Result<NginxConfig> {
             if hosts.is_empty() {
                 route.push(Route {
                     action: action.clone(),
-                    match_: Match::from(&ng_match, None),
+                    match_: Match::from(&match_, None),
                 });
             } else {
                 for host in hosts {
                     route.push(Route {
                         action: action.clone(),
-                        match_: Match::from(&ng_match, Some(host)),
+                        match_: Match::from(&match_, Some(host.to_owned())),
                     });
                 }
             }
         }
-        // let (match, action)
     }
     Ok(nginx_config)
 }

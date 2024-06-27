@@ -47,9 +47,7 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk-listener_id")
                             .from(MatchListener::Table, MatchListener::ListenerId)
-                            .to(Listener::Table, Listener::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
-                            .on_update(ForeignKeyAction::Cascade),
+                            .to(Listener::Table, Listener::Id),
                     )
                     .to_owned(),
             )
@@ -86,38 +84,6 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        // Junction table Match_Action
-        manager
-            .create_table(
-                Table::create()
-                    .table(MatchAction::Table)
-                    .if_not_exists()
-                    .primary_key(
-                        Index::create()
-                            .col(MatchAction::MatchId)
-                            .col(MatchAction::ActionId),
-                    )
-                    .col(ColumnDef::new(MatchAction::MatchId).integer().not_null())
-                    .col(ColumnDef::new(MatchAction::ActionId).integer().not_null())
-                    .foreign_key(
-                        ForeignKey::create()
-                            .name("fk-match_id")
-                            .from(MatchAction::Table, MatchAction::MatchId)
-                            .to(NgMatch::Table, NgMatch::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
-                            .on_update(ForeignKeyAction::Cascade),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
-                            .name("fk-action_id")
-                            .from(MatchAction::Table, MatchAction::ActionId)
-                            .to(Action::Table, Action::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
-                            .on_update(ForeignKeyAction::Cascade),
-                    )
-                    .to_owned(),
-            )
-            .await?;
         // Match
         manager
             .create_table(
@@ -131,7 +97,15 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(NgMatch::RawParams).json().unique_key())
+                    .col(ColumnDef::new(NgMatch::Uuid).uuid().unique_key().not_null())
+                    .col(ColumnDef::new(NgMatch::ActionId).integer().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-action_id")
+                            .from(NgMatch::Table, NgMatch::ActionId)
+                            .to(Action::Table, Action::Id),
+                    )
+                    .col(ColumnDef::new(NgMatch::RawParams).json())
                     .to_owned(),
             )
             .await?;
@@ -193,7 +167,12 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Action::RawParams).json().unique_key())
+                    .col(
+                        ColumnDef::new(Action::RawParams)
+                            .json()
+                            .unique_key()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -221,9 +200,6 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(MatchHost::Table).to_owned())
             .await?;
-        manager
-            .drop_table(Table::drop().table(MatchAction::Table).to_owned())
-            .await?;
         Ok(())
     }
 }
@@ -241,13 +217,6 @@ pub enum MatchHost {
     Id,
     MatchId,
     HostId,
-}
-#[derive(DeriveIden, Debug)]
-pub enum MatchAction {
-    Table,
-    Id,
-    MatchId,
-    ActionId,
 }
 #[derive(DeriveIden, Debug)]
 pub enum Host {
@@ -268,7 +237,10 @@ pub enum Listener {
 pub enum NgMatch {
     Table, // special attribute
     Id,
+    Uuid,
     RawParams,
+    // Relations
+    ActionId,
 }
 #[derive(Iden, EnumIter)]
 pub enum MatchCategory {

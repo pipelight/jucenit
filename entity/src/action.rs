@@ -8,27 +8,18 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
-    pub raw_params: Option<String>,
+    pub raw_params: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::match_action::Entity")]
-    MatchAction,
-}
-
-impl Related<super::match_action::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::MatchAction.def()
-    }
+    #[sea_orm(has_many = "super::ng_match::Entity")]
+    NgMatch,
 }
 
 impl Related<super::ng_match::Entity> for Entity {
     fn to() -> RelationDef {
-        super::match_action::Relation::NgMatch.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::match_action::Relation::Action.def().rev())
+        Relation::NgMatch.def()
     }
 }
 

@@ -65,56 +65,69 @@ impl ConfigUnit {
     }
     pub async fn push_to_db(&self) -> Result<()> {
         let unit = self;
+        // Logic Guards
+        // Ignore gracefully if matching pattern lakes parameters
+        if unit.match_.raw_params.is_none()
+            || unit.match_.raw_params == Some(serde_json::from_str("{}").into_diagnostic()?)
+                && unit.match_.hosts.is_none()
+        {
+            return Ok(());
+        }
+        // Ignore gracefully if no action
+        if let Some(action) = &unit.action {
+            if action.raw_params == Some(serde_json::from_str("{}").into_diagnostic()?) {
+                return Ok(());
+            }
+        }
+
         let db = connect_db().await?;
 
         // Insert Action
-        let mut action: Option<action::ActiveModel> = None;
-        if let Some(a) = &unit.action.clone() {
-            let action_value: action::ActiveModel;
-            let raw_params: Option<String> = a.clone().raw_params.map(|x| x.to_string());
+        let raw_params: String = unit.action.clone().unwrap().raw_params.unwrap().to_string();
 
-            let a = action::ActiveModel {
-                raw_params: ActiveValue::Set(raw_params.clone()),
-                ..Default::default()
-            };
+        let mut action = action::ActiveModel {
+            raw_params: ActiveValue::Set(raw_params.clone()),
+            ..Default::default()
+        };
 
-            let res = Action::insert(a)
-                .on_conflict(
-                    OnConflict::column(action::Column::RawParams)
-                        .do_nothing()
-                        .to_owned(),
-                )
-                .exec_with_returning(&db)
-                .await
-                .into_diagnostic();
+        let res = Action::insert(action)
+            .on_conflict(
+                OnConflict::column(action::Column::RawParams)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .exec_with_returning(&db)
+            .await
+            .into_diagnostic();
 
-            // Populate entities with ids
-            action = Some(match res {
-                Ok(model) => model.into(),
-                Err(e) => {
-                    // debug!("{}", e);
-                    // println!("{}", e);
-                    let model = Action::find()
-                        .filter(action::Column::RawParams.eq(raw_params.unwrap()))
-                        .one(&db)
-                        .await
-                        .into_diagnostic()?
-                        .unwrap()
-                        .into();
-                    model
-                }
-            });
-        }
+        // Populate entities with ids
+        action = match res {
+            Ok(model) => model.into(),
+            Err(e) => {
+                // debug!("{}", e);
+                // println!("{}", e);
+                let model = Action::find()
+                    .filter(action::Column::RawParams.eq(raw_params))
+                    .one(&db)
+                    .await
+                    .into_diagnostic()?
+                    .unwrap()
+                    .into();
+                model
+            }
+        };
 
         // Insert Match
         let raw_params: Option<String> = unit.match_.clone().raw_params.map(|x| x.to_string());
         let mut match_ = ng_match::ActiveModel {
+            uuid: ActiveValue::Set(unit.uuid.clone()),
+            action_id: action.id,
             raw_params: ActiveValue::Set(raw_params.clone()),
             ..Default::default()
         };
         let res = NgMatch::insert(match_)
             .on_conflict(
-                OnConflict::column(ng_match::Column::RawParams)
+                OnConflict::column(ng_match::Column::Uuid)
                     .do_nothing()
                     .to_owned(),
             )
@@ -128,9 +141,9 @@ impl ConfigUnit {
             Err(e) => {
                 // debug!("{}", e);
                 // println!("{}", e);
-                println!("{:#?}", raw_params);
+                // println!("{:#?}", raw_params);
                 let model = NgMatch::find()
-                    .filter(ng_match::Column::RawParams.eq(raw_params.unwrap()))
+                    .filter(ng_match::Column::Uuid.eq(raw_params.unwrap()))
                     .one(&db)
                     .await
                     .into_diagnostic()?
@@ -196,27 +209,6 @@ impl ConfigUnit {
             .await
             .into_diagnostic()?;
 
-        // Join Match and Action
-        if let Some(action) = action {
-            let match_action = match_action::ActiveModel {
-                match_id: match_.id.clone(),
-                action_id: action.id.clone(),
-            };
-            MatchAction::insert(match_action)
-                .on_conflict(
-                    OnConflict::columns(vec![
-                        match_action::Column::MatchId,
-                        match_action::Column::ActionId,
-                    ])
-                    .do_nothing()
-                    .to_owned(),
-                )
-                .do_nothing()
-                .exec_without_returning(&db)
-                .await
-                .into_diagnostic()?;
-        }
-
         // Insert Hosts
         if unit.match_.hosts.is_some() {
             let mut hosts: Vec<host::ActiveModel> = vec![];
@@ -252,6 +244,7 @@ impl ConfigUnit {
                     .collect();
             };
 
+            // Join Match and Host
             let mut list: Vec<match_host::ActiveModel> = vec![];
             for host in hosts {
                 let match_host = match_host::ActiveModel {
@@ -293,36 +286,34 @@ mod test {
         let db = fresh_db().await?;
         // Get struct from config
         let toml = "
-            [[unit]]
-            listeners = ['*:443']
+        [[unit]]
+        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com', 'example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
 
-            [unit.match]
-            hosts = ['test.com','example.com']
+        [[unit]]
+        uuid = 'd462482d-21f7-48d6-8360-528f9e664c2f'
+        listeners = ['*:443']
+        [unit.match]
+        uri = ['/home']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
 
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            uri = ['/home']
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8222'
+        [[unit]]
+        uuid = 'cc4e626a-9354-480e-a78b-f9f845148984'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['api.example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8222'
         ";
         let config = ConfigFile::from_toml_str(toml)?;
         config.push().await?;
         let nginx_config = crate::nginx::db_into_nginx_conf().await?;
-        println!("{:#?}", nginx_config);
+        // println!("{:#?}", nginx_config);
         Ok(())
     }
 
@@ -337,52 +328,22 @@ mod test {
         set_default_config().await?;
         Ok(())
     }
-    // #[tokio::test]
-    async fn partial_remove() -> Result<()> {
+
+    #[tokio::test]
+    async fn remove_unit_by_uuid() -> Result<()> {
         set_default_config().await?;
-        // Remove unit
         let toml = "
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            hosts = ['test.com']
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
+        [[unit]]
+        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['test.com', 'example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8333'
         ";
         let config = ConfigFile::from_toml_str(toml)?;
         config.remove_from_db().await?;
         let nginx_config = crate::nginx::db_into_nginx_conf().await?;
-        Ok(())
-    }
-
-    // #[tokio::test]
-    async fn complete_remove() -> Result<()> {
-        set_default_config().await?;
-        // Remove unit
-        let toml = "
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-            hosts = ['test.com','example.com']
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-
-            [[unit]]
-            listeners = ['*:443']
-
-            [unit.match]
-
-            [unit.action]
-            proxy = 'http://127.0.0.1:8333'
-        ";
-        let config = ConfigFile::from_toml_str(toml)?;
-        config.remove_from_db().await?;
-        let nginx_config = crate::nginx::db_into_nginx_conf().await?;
-        println!("{:#?}", nginx_config);
         Ok(())
     }
 }
