@@ -10,6 +10,10 @@ Internally uses [nginx unit](https://github.com/nginx/unit).
 - **Split** your configuration across multiple files in **Toml**.
 - **Easy ssl** renewal.
 
+## How it works ?
+
+See INTERNALS.md
+
 ## Usage
 
 ### Expose services
@@ -19,11 +23,10 @@ Use it as a reverse-proxy.
 ```toml
 # jucenit.toml
 [[unit]]
+uuid = "d3630938-5851-43ab-a523-84e0c6af9eb1"
 listeners = ["*:443"]
-
 [unit.match]
 hosts = ["example.com"]
-
 [unit.action]
 proxy = "http://127.0.0.1:8888"
 ```
@@ -32,22 +35,17 @@ Or for file sharing
 
 ```toml
 # jucenit.toml
-
 [[unit]]
+uuid = "f37490cb-d4eb-4f37-bb85-d39dad6a21ab"
 listeners = ["*:443"]
-
 [unit.match]
 hosts = ["test.com"]
 uri = "/files"
-
 [unit.action]
-share =[
-    "/path/to/my_files"
-]
+share = ["/path/to/my_files"]
 ```
 
 And many more possibilities at [nginx unit](https://github.com/nginx/unit).
-
 Update the global configuration with your configuration chunks.
 
 ```sh
@@ -55,6 +53,8 @@ jucenit push
 # or
 jucenit push --file jucenit.toml
 ```
+
+**Your chunks must be uniquely identified with a mandatory uuid.**
 
 ### Edit the global configuration
 
@@ -84,13 +84,6 @@ Remove every certificates.
 ```sh
 jucenit ssl --clean
 ```
-
-## How it works ?
-
-Jucenit only convert files.
-
-Jucenit translates its simple **toml** configuration into nginx-unit **json** configuration.
-It then pushes those file chunks through nginx-unit API.
 
 ## Install
 
@@ -149,4 +142,4 @@ Automatic certificate renewal:
 
 - [ ]: parallel certificate renewal
 - [ ]: make a daemon that watches certificates validity
-- [ ]: provide a template systemd unit
+- [ ]: provide a template systemd unit (nginx sandboxing oc)
