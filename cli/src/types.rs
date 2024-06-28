@@ -48,19 +48,20 @@ impl Cli {
         match cli.commands {
             Commands::Push(args) => {
                 if let Some(file) = args.file {
-                    let config_file = ConfigFile::load(&file)?;
-                    config_file.push().await?;
+                    let config = ConfigFile::load(&file)?;
+                    config.push().await?;
                 } else {
-                    let config_file = ConfigFile::get()?;
-                    config_file.push().await?;
+                    let config = ConfigFile::get()?;
+                    config.push().await?;
                 }
             }
             Commands::Clean => {
-                let config_file = ConfigFile::default();
-                config_file.set().await?;
+                let config = ConfigFile::default();
+                config.set().await?;
             }
             Commands::Edit => {
-                // JuceConfig::pull().await?.edit().await?;
+                let config = ConfigFile::pull().await?;
+                config.edit().await?;
             }
             Commands::Ssl(args) => {
                 if args.renew {
@@ -71,7 +72,6 @@ impl Cli {
                 }
             }
             _ => {
-
                 // Err
             }
         };

@@ -14,7 +14,6 @@ use sea_orm::{Database, DatabaseConnection};
 use tracing::{debug, Level};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
-use watchexec::filter;
 
 impl ConfigFile {
     /**

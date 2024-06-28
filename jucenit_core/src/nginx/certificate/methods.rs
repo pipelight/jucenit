@@ -148,23 +148,23 @@ mod tests {
         Ok(())
     }
 
-    // #[tokio::test]
-    // #[serial]
+    #[tokio::test]
+    #[serial]
     async fn clean_cert_store() -> Result<()> {
         let res = CertificateStore::clean().await?;
         println!("{:#?}", res);
         Ok(())
     }
-    // #[tokio::test]
-    // #[serial]
+    #[tokio::test]
+    #[serial]
     async fn remove_cert() -> Result<()> {
         let dns = "example.com";
         let res = CertificateStore::remove(dns).await?;
         println!("{:#?}", res);
         Ok(())
     }
-    // #[tokio::test]
-    // #[serial]
+    #[tokio::test]
+    #[serial]
     async fn add_fake_cert() -> Result<()> {
         set_testing_config().await?;
         let dns = "example.com";
@@ -173,8 +173,8 @@ mod tests {
         println!("{:#?}", res);
         Ok(())
     }
-    // #[tokio::test]
-    // #[serial]
+    #[tokio::test]
+    #[serial]
     async fn update_fake_cert() -> Result<()> {
         set_testing_config().await?;
         let dns = "example.com";
@@ -183,8 +183,8 @@ mod tests {
         println!("{:#?}", res);
         Ok(())
     }
-    // #[tokio::test]
-    // #[serial]
+    #[tokio::test]
+    #[serial]
     async fn update_cert_letsencrypt() -> Result<()> {
         set_testing_config().await?;
         let dns = "example.com";

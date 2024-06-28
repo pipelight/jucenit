@@ -149,6 +149,10 @@ impl Unit {
             }
         }
     }
+    pub fn to_toml(&self) -> Result<String> {
+        let res = toml::to_string_pretty(self).into_diagnostic();
+        res
+    }
     /**
     Returns a jucenit configuration from a provided yaml string.
     */
@@ -161,6 +165,10 @@ impl Unit {
                 Err(err.into())
             }
         }
+    }
+    pub fn to_yaml(&self) -> Result<String> {
+        let res = serde_yaml::to_string(self).into_diagnostic();
+        res
     }
 }
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
