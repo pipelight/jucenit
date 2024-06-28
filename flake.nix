@@ -1,5 +1,5 @@
 {
-  description = "Jucenit - Easy proxy with autossl";
+  description = "Jucenit - A simple web server";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
