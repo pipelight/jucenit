@@ -5,6 +5,7 @@ use crate::{ConfigFile, ConfigUnit, NginxConfig};
 // use indexmap::IndexMap;
 use crate::database::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
+use rayon::iter::Update;
 use sea_orm::{
     prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase,
 };
@@ -21,7 +22,7 @@ impl ConfigFile {
      */
     pub async fn push_to_db(&self) -> Result<()> {
         for unit in &self.unit {
-            unit.push().await?;
+            unit.push_to_db().await?;
         }
         Ok(())
     }
@@ -31,7 +32,7 @@ impl ConfigFile {
     async fn push_to_fresh_db(&self) -> Result<()> {
         fresh_db().await?;
         for unit in &self.unit {
-            unit.push().await?;
+            unit.push_to_db().await?;
         }
         Ok(())
     }
@@ -46,7 +47,8 @@ impl ConfigFile {
         Ok(())
     }
     /**
-     * Clean up database and push file to database and
+     * Clean up database and push file to database
+     * and update nginx
      */
     pub async fn set(&self) -> Result<()> {
         self.push_to_fresh_db().await?;
@@ -142,7 +144,7 @@ impl ConfigUnit {
                 // println!("{}", e);
                 // println!("{:#?}", raw_params);
                 let model = NgMatch::find()
-                    .filter(ng_match::Column::Uuid.eq(raw_params.unwrap()))
+                    .filter(ng_match::Column::Uuid.eq(&unit.uuid))
                     .one(&db)
                     .await
                     .into_diagnostic()?
@@ -165,6 +167,7 @@ impl ConfigUnit {
         let res = Listener::insert_many(listeners.clone())
             .on_conflict(
                 OnConflict::column(listener::Column::IpSocket)
+                    .update_column(listener::Column::Tls)
                     .do_nothing()
                     .to_owned(),
             )
@@ -280,39 +283,20 @@ mod test {
     use tracing::{debug, Level};
     // Error Handling
     use miette::{IntoDiagnostic, Result};
+    use std::path::PathBuf;
 
-    async fn set_default_config() -> Result<()> {
-        let db = fresh_db().await?;
-        // Get struct from config
-        let toml = "
-        [[unit]]
-        uuid = 'd3630938-5851-43ab-a523-84e0c6af9eb1'
-        listeners = ['*:443']
-        [unit.match]
-        hosts = ['test.com', 'example.com']
-        [unit.action]
-        proxy = 'http://127.0.0.1:8333'
+    /**
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
+     */
+    async fn set_testing_config() -> Result<()> {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
 
-        [[unit]]
-        uuid = 'd462482d-21f7-48d6-8360-528f9e664c2f'
-        listeners = ['*:443']
-        [unit.match]
-        uri = ['/home']
-        [unit.action]
-        proxy = 'http://127.0.0.1:8333'
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.set().await?;
 
-        [[unit]]
-        uuid = 'cc4e626a-9354-480e-a78b-f9f845148984'
-        listeners = ['*:443']
-        [unit.match]
-        hosts = ['api.example.com']
-        [unit.action]
-        proxy = 'http://127.0.0.1:8222'
-        ";
-        let config = ConfigFile::from_toml_str(toml)?;
-        config.push().await?;
-        let nginx_config = NginxConfig::pull().await?;
-        // println!("{:#?}", nginx_config);
         Ok(())
     }
 
@@ -324,7 +308,27 @@ mod test {
 
     #[tokio::test]
     async fn seed_db() -> Result<()> {
-        set_default_config().await?;
+        set_testing_config().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn salve_push() -> Result<()> {
+        set_testing_config().await?;
+
+        let toml = "
+        [[unit]]
+        uuid = 'cc4e626a-9354-480e-a78b-f9f845148984'
+        listeners = ['*:443']
+        [unit.match]
+        hosts = ['api.example.com']
+        [unit.action]
+        proxy = 'http://127.0.0.1:8222'
+        ";
+
+        let config = ConfigFile::from_toml_str(toml)?;
+        config.push().await?;
+
         Ok(())
     }
 }

@@ -70,6 +70,7 @@ impl CertificateStore {
 #[cfg(test)]
 mod tests {
     use crate::cast::Config as ConfigFile;
+    use crate::database::{connect_db, fresh_db};
     use crate::nginx::CertificateStore;
     use crate::ssl;
     use crate::ssl::Fake as FakeCertificate;
@@ -81,16 +82,18 @@ mod tests {
     use miette::{Error, IntoDiagnostic, Result};
 
     /**
-     * Set a fresh testing environment
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
      */
     async fn set_testing_config() -> Result<()> {
-        // Clean config and certificate store
         CertificateStore::clean().await?;
 
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
+
         let config = ConfigFile::load(path.to_str().unwrap())?;
-        config.push().await?;
+        config.set().await?;
 
         Ok(())
     }

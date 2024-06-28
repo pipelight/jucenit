@@ -10,7 +10,6 @@
 use miette::{IntoDiagnostic, Result};
 use sea_orm_migration::prelude::*;
 use sea_query::Index;
-use strum::EnumIter;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -243,13 +242,6 @@ pub enum NgMatch {
     RawParams,
     // Relations
     ActionId,
-}
-#[derive(Iden, EnumIter)]
-pub enum MatchCategory {
-    Managed,
-    Unmanaged,
-    HttpChallenge,
-    TlsAlpnChallenge,
 }
 
 #[derive(DeriveIden)]

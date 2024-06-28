@@ -131,31 +131,32 @@ mod tests {
 
     use serial_test::serial;
 
-    use crate::database::{connect_db, fresh_db};
-
     /**
-     * Set a fresh testing environment
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
      */
     async fn set_testing_config() -> Result<()> {
-        // Clean config and certificate store
         CertificateStore::clean().await?;
-        let db = fresh_db().await?;
 
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
+
         let config = ConfigFile::load(path.to_str().unwrap())?;
-        config.push().await?;
+        config.set().await?;
 
         Ok(())
     }
 
     // #[tokio::test]
+    // #[serial]
     async fn clean_cert_store() -> Result<()> {
         let res = CertificateStore::clean().await?;
         println!("{:#?}", res);
         Ok(())
     }
     // #[tokio::test]
+    // #[serial]
     async fn remove_cert() -> Result<()> {
         let dns = "example.com";
         let res = CertificateStore::remove(dns).await?;
@@ -163,7 +164,9 @@ mod tests {
         Ok(())
     }
     // #[tokio::test]
+    // #[serial]
     async fn add_fake_cert() -> Result<()> {
+        set_testing_config().await?;
         let dns = "example.com";
         let bundle = FakeCertificate::get(dns)?;
         let res = CertificateStore::add(dns, &bundle).await?;
@@ -171,7 +174,9 @@ mod tests {
         Ok(())
     }
     // #[tokio::test]
+    // #[serial]
     async fn update_fake_cert() -> Result<()> {
+        set_testing_config().await?;
         let dns = "example.com";
         let bundle = FakeCertificate::get(dns)?;
         let res = CertificateStore::update(dns, &bundle).await?;
@@ -179,7 +184,9 @@ mod tests {
         Ok(())
     }
     // #[tokio::test]
+    // #[serial]
     async fn update_cert_letsencrypt() -> Result<()> {
+        set_testing_config().await?;
         let dns = "example.com";
         let account = ssl::pebble::pebble_account().await?.clone();
         let bundle = LetsencryptCertificate::get_cert_bundle(dns, &account).await?;
@@ -193,15 +200,19 @@ mod tests {
     async fn hydrate_cert_store() -> Result<()> {
         set_testing_config().await?;
 
-        // let res = CertificateStore::hydrate().await?;
-        //
-        // let certificates = CertificateStore::get_all().await?;
-        // let mut dns_list: Vec<String> = certificates.into_keys().collect();
-        // dns_list.sort();
-        // let mut expected = vec!["example.com".to_owned(), "test.com".to_owned()];
-        // expected.sort();
-        //
-        // assert_eq!(expected, dns_list);
+        let res = CertificateStore::hydrate().await?;
+
+        let certificates = CertificateStore::get_all().await?;
+        let mut dns_list: Vec<String> = certificates.into_keys().collect();
+        dns_list.sort();
+        let mut expected = vec![
+            "api.example.com".to_owned(),
+            "example.com".to_owned(),
+            "test.com".to_owned(),
+        ];
+        expected.sort();
+
+        assert_eq!(expected, dns_list);
         Ok(())
     }
 }

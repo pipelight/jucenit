@@ -124,20 +124,19 @@ mod tests {
     use jucenit_core::{CertificateStore, ConfigFile};
 
     /**
-     * Set a fresh testing environment
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
      */
     async fn set_testing_config() -> Result<()> {
-        // Clean config and certificate store
         CertificateStore::clean().await?;
-        let config_file = ConfigFile::default();
-        config_file.set().await?;
 
-        // Set new configuration
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
 
-        let config_file = ConfigFile::load(path.to_str().unwrap())?;
-        config_file.set().await?;
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.set().await?;
+
         Ok(())
     }
 

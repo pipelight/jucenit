@@ -1,6 +1,6 @@
 use crate::{
-    nginx::config::crud::{Action, ListenerOpts, Match},
-    ConfigFile, ConfigUnit,
+    nginx::config::crud::{Action, ListenerOpts, Match, Tls},
+    CertificateStore, ConfigFile, ConfigUnit,
 };
 // Database / Sea orm
 // use indexmap::IndexMap;
@@ -19,15 +19,29 @@ use super::Route;
 
 // impl From<&entity::prelude::Listener> for ListenerOpts {
 impl ListenerOpts {
-    pub fn from(e: &listener::Model) -> (String, ListenerOpts) {
+    pub async fn from(e: &listener::Model) -> Result<(String, ListenerOpts)> {
+        // Bulk add certificates to listeners
+        let certs: Vec<String> = CertificateStore::get_all_valid()
+            .await?
+            .into_keys()
+            .into_iter()
+            .collect();
+
+        let tls: Option<Tls>;
+        if certs.is_empty() || e.ip_socket.ends_with(":80") {
+            tls = None
+        } else {
+            tls = Some(Tls { certificate: certs })
+        }
+
         let tuples = (
             e.ip_socket.to_owned(),
             ListenerOpts {
                 pass: format!("routes/jucenit_[{}]", e.ip_socket),
-                tls: None,
+                tls,
             },
         );
-        tuples
+        Ok(tuples)
     }
 }
 
@@ -70,8 +84,8 @@ mod tests {
     // Error Handling
     use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
-    #[test]
-    fn convert_listener() -> Result<()> {
+    #[tokio::test]
+    async fn convert_listener() -> Result<()> {
         let listener = listener::Model {
             id: 4,
             ip_socket: "*:8082".to_owned(),
@@ -84,7 +98,7 @@ mod tests {
                 tls: None,
             },
         );
-        let res = ListenerOpts::from(&listener);
+        let res = ListenerOpts::from(&listener).await?;
         assert_eq!(expect, res);
         Ok(())
     }

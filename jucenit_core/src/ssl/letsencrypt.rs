@@ -76,7 +76,7 @@ fn make_jucenit_tls_alpn_challenge_config(dns: &str, challenge: &Challenge) -> R
         share = ['/tmp/jucenit/challenge_{}.txt']
         ",
         Uuid::new_v4(),
-        HTTP_PORT,
+        TLS_PORT,
         dns,
         challenge.token.clone().unwrap(),
         dns
@@ -108,12 +108,12 @@ async fn make_jucenit_http_challenge_config(
         listeners = ['*:{}']
         [match]
         hosts = ['{}']
-        uri = '/.well-known/acme-challenge/{}'
+        uri = ['/.well-known/acme-challenge/{}']
         [action]
         share = ['/tmp/jucenit/challenge_{}.txt']
         ",
         Uuid::new_v4(),
-        TLS_PORT,
+        HTTP_PORT,
         dns,
         challenge.token.clone().unwrap(),
         dns
@@ -185,7 +185,7 @@ impl Letsencrypt {
             .wait_ready(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(order.status, OrderStatus::Ready);
+        assert_eq!(OrderStatus::Ready, order.status);
 
         // Generate an RSA private key for the certificate.
         let pkey = gen_rsa_private_key(4096).into_diagnostic()?;
@@ -203,7 +203,7 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(order.status, OrderStatus::Valid);
+        assert_eq!(OrderStatus::Valid, order.status);
 
         // Download the certificate, and panic if it doesn't exist.
         let certificates = order.certificate().await.into_diagnostic()?.unwrap();
@@ -229,7 +229,7 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(challenge.status, ChallengeStatus::Valid);
+        assert_eq!(ChallengeStatus::Valid, challenge.status);
 
         // Delete route to challenge key file
         del_challenge_key_file(dns, &challenge)?;
@@ -239,7 +239,7 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(authorization.status, AuthorizationStatus::Valid);
+        assert_eq!(AuthorizationStatus::Valid, authorization.status);
         Ok(())
     }
     /**
@@ -283,8 +283,11 @@ impl Letsencrypt {
 mod tests {
     use super::Letsencrypt;
     use super::*;
+    use crate::database::{connect_db, fresh_db};
     use crate::nginx::CertificateStore;
     use crate::ConfigFile;
+    use std::path::PathBuf;
+
     use miette::Result;
 
     /**
@@ -294,8 +297,13 @@ mod tests {
      */
     async fn set_testing_config() -> Result<()> {
         CertificateStore::clean().await?;
-        let config_file = ConfigFile::load("../examples/jucenit.toml")?;
-        config_file.set().await?;
+
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.set().await?;
+
         Ok(())
     }
 

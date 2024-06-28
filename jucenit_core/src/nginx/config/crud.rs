@@ -186,14 +186,15 @@ mod tests {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("../examples/jucenit.toml");
 
-        let config_file = ConfigFile::load(path.to_str().unwrap())?;
-        config_file.push_to_db().await?;
-        let nginx_config = NginxConfig::pull().await?;
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.set().await?;
 
-        let json = serde_json::to_string_pretty(&nginx_config).into_diagnostic()?;
+        let nginx = NginxConfig::pull().await?;
+
+        let json = serde_json::to_string_pretty(&nginx).into_diagnostic()?;
         println!("{}", json);
 
-        let res = nginx_config.set().await?;
+        let res = nginx.set().await?;
         println!("{:#?}", res);
 
         Ok(())

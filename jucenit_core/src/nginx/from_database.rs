@@ -33,7 +33,7 @@ impl NginxConfig {
             .into_diagnostic()?;
         for (listener, matches) in listeners {
             // Append listeners and routes to nginx configuration
-            let (ip_socket, listener) = ListenerOpts::from(&listener);
+            let (ip_socket, listener) = ListenerOpts::from(&listener).await?;
             nginx_config
                 .listeners
                 .insert(ip_socket.clone(), listener.clone());
