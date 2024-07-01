@@ -44,6 +44,8 @@ in {
     # Jucenit file permissions
     "d '/var/spool/jucenit' 0774 ${cfg.user} users - -"
     "Z '/var/spool/jucenit' 0774 ${cfg.user} users - -"
+    "d '/tmp/jucenit' 774 ${cfg.user} users - -"
+    "Z '/tmp/jucenit' 774 ${cfg.user} users - -"
   ];
   ################################################
   ### Jucenit - autossl
@@ -55,7 +57,7 @@ in {
     wantedBy = ["multi-user.target"];
     serviceConfig = {
       ExecStart = ''
-        ${pkgs.jucenit} --ssl
+        ${pkgs.jucenit} ssl --watch
       '';
       ReadWritePaths = [cfg.stateDir cfg.logDir cfg.challengDir];
     };
