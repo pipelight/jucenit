@@ -5,16 +5,13 @@
   inputs,
   ...
 }: let
-  cfg = with lib; {
+  cfg = {
     # Package configuration variables
     user = "unit";
     group = "unit";
     stateDir = "/var/spool/unit";
     logDir = "/var/log/unit";
     challengDir = "/tmp/jucenit";
-
-    # Get package from flake inputs
-    jucenit = inputs.jucenit.packages.${system}.default;
   };
 in {
   users.users.${cfg.user} = {
@@ -28,7 +25,10 @@ in {
     ];
   };
 
-  environment.defaultPackages = with pkgs; [
+  environment.defaultPackages = with pkgs; let
+    # Get package from flake inputs
+    jucenit = inputs.jucenit.packages.${system}.default;
+  in [
     # Web server and dependencies
     jucenit
     unit
@@ -47,6 +47,7 @@ in {
     "d '/tmp/jucenit' 774 ${cfg.user} users - -"
     "Z '/tmp/jucenit' 774 ${cfg.user} users - -"
   ];
+
   ################################################
   ### Jucenit - autossl
   ## Systemd unit
@@ -56,8 +57,10 @@ in {
     after = ["network.target"];
     wantedBy = ["multi-user.target"];
     serviceConfig = {
-      ExecStart = ''
-        ${pkgs.jucenit} ssl --watch
+      ExecStart = with pkgs; let
+        jucenit = inputs.jucenit.packages.${system}.default;
+      in ''
+        ${jucenit} ssl --watch
       '';
       ReadWritePaths = [cfg.stateDir cfg.logDir cfg.challengDir];
     };
