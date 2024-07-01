@@ -1,6 +1,12 @@
 # Jucenit - A simple web server.
 
-Warning: Early development stage.
+Warning:
+
+**Early development stage.**
+Do not use at home.
+You might not want to come back to other web servers.
+
+The API is still undergoing some small changes.
 
 Jucenit is a web server configurable through short scattered toml files.
 Internally uses [nginx unit](https://github.com/nginx/unit).
@@ -81,9 +87,15 @@ Remove every certificates.
 jucenit ssl --clean
 ```
 
+Run the daemon for automatic certificate creation and renewal
+
+```sh
+jucenit ssl --clean
+```
+
 ## How it works ?
 
-See INTERNALS.md
+See detailed project structure and functionning at [INTERNALS.md](https://github.com/pipelight/jucenit/INTERNALS.md)
 
 ## Install
 
@@ -123,23 +135,19 @@ to your actual nixos configuration.
 
 ## Roadmap
 
-Tooling:
-
-Convenience commands:
-
-- [x]: edit global configuration with favorite editor
-- [ ]: "push -d" to remove a chunk from global configuration
-- [ ]: allow passing a string to "jucenit push"
-
-Tls/Ssl:
-
-ACME Challenge support:
-
-- [x]: http-01
-- [ ]: tls-ALPN-01
-
-Automatic certificate renewal:
-
-- [ ]: parallel certificate renewal
+- [x]: add command to edit global configuration with favorite editor.
+- [ ]: add "push -d" to remove a chunk from global configuration.
+- [ ]: add optioin to allow passing a toml string instead of a config file path to the executable.
+- [x]: add support for acme challenge http-01
+- [ ]: add support for acme challenge tls-ALPN-01
+- [x]: parallel certificate renewal
 - [ ]: make a daemon that watches certificates validity
-- [ ]: provide a template systemd unit (nginx sandboxing oc)
+- [x]: provide a template systemd unit (with nginx-unit sandboxing of course)
+
+## Authors note
+
+_We need better tooling
+to easily share our creations to the world._
+
+_We need to be able to focus only on the code that truely matters,
+the code that is good, that is creative and that free individuals._

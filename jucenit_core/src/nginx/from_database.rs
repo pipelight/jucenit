@@ -87,9 +87,26 @@ mod test {
     use super::*;
     // Error Handling
     use miette::{Error, IntoDiagnostic, Result, WrapErr};
+    use std::path::PathBuf;
+
+    /**
+     * Set a fresh testing environment:
+     * - clean certificate store
+     * - set minimal nginx configuration
+     */
+    async fn set_testing_config() -> Result<()> {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("../examples/jucenit.toml");
+
+        let config = ConfigFile::load(path.to_str().unwrap())?;
+        config.set().await?;
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn convert() -> Result<()> {
+        set_testing_config().await?;
         let nginx_config = NginxConfig::pull().await?;
         println!("{:#?}", nginx_config);
         Ok(())

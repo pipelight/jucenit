@@ -5,12 +5,16 @@
   inputs,
   ...
 }: let
-  cfg = {
+  cfg = with lib; {
+    # Package configuration variables
     user = "unit";
     group = "unit";
     stateDir = "/var/spool/unit";
     logDir = "/var/log/unit";
     challengDir = "/tmp/jucenit";
+
+    # Get package from flake inputs
+    jucenit = inputs.jucenit.packages.${system}.default;
   };
 in {
   users.users.${cfg.user} = {
@@ -19,35 +23,53 @@ in {
   };
   users.groups = {
     unit.members = [
-      # Add users that can manage unit process
-      # "anon"
+      # Add users that can manage unit/jucenit files
+      "anon"
     ];
   };
 
   environment.defaultPackages = with pkgs; [
     # Web server and dependencies
-    inputs.jucenit.packages.${system}.default
+    jucenit
     unit
   ];
 
   systemd.tmpfiles.rules = [
-    # Nginx-unit
+    # Nginx-unit file permissions (bit mode)
     "d '${cfg.stateDir}' 0750 ${cfg.user} ${cfg.group} - -"
     "Z '${cfg.stateDir}' 0750 ${cfg.user} ${cfg.group} - -"
     "d '${cfg.logDir}' 0750 ${cfg.user} ${cfg.group} - -"
     "Z '${cfg.logDir}' 0750 ${cfg.user} ${cfg.group} - -"
 
-    # Jucenit
+    # Jucenit file permissions
     "d '/var/spool/jucenit' 0774 ${cfg.user} users - -"
     "Z '/var/spool/jucenit' 0774 ${cfg.user} users - -"
   ];
+  ################################################
+  ### Jucenit - autossl
+  ## Systemd unit
 
-  ## Add global packages
-  # services.unit.enable = true; # Do not use because overkilling config file
+  systemd.services.jucenit_autossl = {
+    enable = true;
+    after = ["network.target"];
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      ExecStart = ''
+        ${pkgs.jucenit} --ssl
+      '';
+      ReadWritePaths = [cfg.stateDir cfg.logDir cfg.challengDir];
+    };
+  };
 
+  ################################################
+  ### Nginx-unit
   ## Custom systemd unit
   # Replace default secure unix socket with local tcp socket
   # source at: https://github.com/NixOS/nixpkgs/nixos/modules/services/web-servers/unit/default.nix
+
+  ## Add global packages
+  # services.unit.enable = true; # Do not use and prefer custom unit
+
   systemd.services.unit = let
     settings = ''
       {

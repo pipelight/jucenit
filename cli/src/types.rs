@@ -70,6 +70,9 @@ impl Cli {
                 if args.clean {
                     CertificateStore::clean().await?;
                 }
+                if args.watch {
+                    CertificateStore::watch().await?;
+                }
             }
             _ => {
                 // Err
