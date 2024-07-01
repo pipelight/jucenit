@@ -99,7 +99,7 @@ pub enum Commands {
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
 pub struct File {
-    #[arg(long)]
+    #[arg(help = "A configuration file path, example: ./jucenit.toml", value_hint = ValueHint::FilePath)]
     pub file: Option<String>,
 }
 

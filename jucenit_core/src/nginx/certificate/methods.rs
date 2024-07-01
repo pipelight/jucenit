@@ -4,6 +4,7 @@ use miette::{Error, IntoDiagnostic, Result};
 // Ssl utils
 use crate::ssl;
 use crate::ssl::Letsencrypt as LetsencryptCertificate;
+use crate::ConfigFile;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -38,7 +39,11 @@ impl CertificateStore {
         let parallel = domain.iter().map(Self::hydrate_one);
 
         join_all(parallel).await;
-        // Update routes
+
+        // Update listeners tls option with fresh certs
+        // By updating whole config
+        let config = ConfigFile::pull().await?;
+        config.push().await?;
 
         Ok(())
     }
