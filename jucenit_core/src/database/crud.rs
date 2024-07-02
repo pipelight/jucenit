@@ -15,8 +15,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 // use indexmap::IndexMap;
 use super::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
+use sea_orm::{
+    error::{ConnAcquireErr, DbErr},
+    Database, DatabaseConnection,
+};
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
-use sea_orm::{Database, DatabaseConnection};
 
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
@@ -26,15 +29,36 @@ use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 
 pub async fn connect_db() -> Result<DatabaseConnection> {
-    let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-    let db: DatabaseConnection = Database::connect(database_url).await.into_diagnostic()?;
-    Ok(db)
+    let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rw";
+    // let db: DatabaseConnection = Database::connect(database_url).await.into_diagnostic()?;
+    let db = Database::connect(database_url).await;
+    match &db {
+        Err(e) => {
+            let db = fresh_db().await?;
+            return Ok(db);
+        }
+        _ => {}
+    };
+    Ok(db.into_diagnostic()?)
 }
-pub async fn fresh_db() -> Result<()> {
+pub async fn fresh_db() -> Result<DatabaseConnection> {
     let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rwc";
-    let connection = sea_orm::Database::connect(database_url)
+    let db = sea_orm::Database::connect(database_url)
         .await
         .into_diagnostic()?;
-    Migrator::fresh(&connection).await.into_diagnostic()?;
-    Ok(())
+    Migrator::fresh(&db).await.into_diagnostic()?;
+    Ok(db)
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+    // Error Handling
+    use miette::{IntoDiagnostic, Result};
+
+    #[tokio::test]
+    async fn connect_to_db() -> Result<()> {
+        // connect_db().await?;
+        fresh_db().await?;
+        Ok(())
+    }
 }

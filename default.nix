@@ -5,7 +5,7 @@
 }:
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "jucenit";
-  version = "0.4.0";
+  version = "0.4.2";
   src = ./.;
 
   cargoLock = {

@@ -90,7 +90,7 @@ jucenit ssl --clean
 Run the daemon for automatic certificate creation and renewal
 
 ```sh
-jucenit ssl --clean
+jucenit ssl --watch
 ```
 
 ## How it works ?

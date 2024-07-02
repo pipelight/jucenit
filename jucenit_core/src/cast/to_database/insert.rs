@@ -300,12 +300,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn connect_to_db() -> Result<()> {
-        connect_db().await?;
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn seed_db() -> Result<()> {
         set_testing_config().await?;
         Ok(())
