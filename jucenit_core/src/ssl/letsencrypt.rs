@@ -6,7 +6,7 @@ use acme2::{
 use serde_json::json;
 use std::time::Duration;
 // Error Handling
-use miette::{Context, Error, IntoDiagnostic, Result};
+use miette::{ensure, Context, Error, IntoDiagnostic, Result};
 // use acme2::Error;
 // Global vars
 use crate::nginx::SETTINGS;
@@ -186,7 +186,7 @@ impl Letsencrypt {
             .wait_ready(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(OrderStatus::Ready, order.status);
+        ensure!(OrderStatus::Ready == order.status, "Order no Ready");
 
         // Generate an RSA private key for the certificate.
         let pkey = gen_rsa_private_key(4096).into_diagnostic()?;
@@ -204,11 +204,11 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(OrderStatus::Valid, order.status);
+        ensure!(OrderStatus::Valid == order.status, "Order not Valid");
 
         // Download the certificate, and panic if it doesn't exist.
         let certificates = order.certificate().await.into_diagnostic()?.unwrap();
-        assert!(certificates.len() > 1);
+        ensure!(certificates.len() > 1, "No certificate returned");
 
         let mut bundle = String::new();
         for cert in certificates.clone() {
@@ -230,7 +230,10 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(ChallengeStatus::Valid, challenge.status);
+        ensure!(
+            ChallengeStatus::Valid == challenge.status,
+            "Http Challenge not Valid"
+        );
 
         // Delete route to challenge key file
         del_challenge_key_file(dns, &challenge)?;
@@ -240,7 +243,10 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(AuthorizationStatus::Valid, authorization.status);
+        ensure!(
+            AuthorizationStatus::Valid == authorization.status,
+            "Authorization not Valid"
+        );
         Ok(())
     }
     /**
@@ -265,7 +271,10 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(challenge.status, ChallengeStatus::Valid);
+        ensure!(
+            challenge.status == ChallengeStatus::Valid,
+            "Tls Challenge not Valid"
+        );
 
         // Delete route to challenge key file
         del_challenge_key_file(dns, &challenge)?;
@@ -275,7 +284,10 @@ impl Letsencrypt {
             .wait_done(Duration::from_secs(5), 10)
             .await
             .into_diagnostic()?;
-        assert_eq!(authorization.status, AuthorizationStatus::Valid);
+        ensure!(
+            authorization.status == AuthorizationStatus::Valid,
+            "Authorization not Valid"
+        );
         Ok(())
     }
 }
