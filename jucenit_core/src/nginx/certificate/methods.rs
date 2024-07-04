@@ -39,18 +39,9 @@ impl CertificateStore {
         let domains: Vec<String> = hosts.iter().map(|x| x.domain.clone()).collect();
 
         let parallel = domains.iter().map(Self::hydrate_one);
-        try_join_all(parallel).await?;
         // TODO
         // Use JoinSet instead of join_all for better error report
-        // let mut set = JoinSet::new();
-        // for host in domains {
-        //     set.spawn(async move {
-        //         let _ = Self::hydrate_one(&host).await.unwrap();
-        //     });
-        // }
-        // for p in parallel {
-        //     p.await?;
-        // }
+        try_join_all(parallel).await?;
 
         // Update listeners tls option with fresh certs
         // By updating whole config
@@ -74,7 +65,9 @@ impl CertificateStore {
             Ok(res) => {
                 if res.validity.should_renew()? {
                     let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-                    CertificateStore::update(&dns, &bundle).await.unwrap();
+                    CertificateStore::descrete_update(&dns, &bundle)
+                        .await
+                        .unwrap();
                 }
             }
             Err(_) => {
@@ -82,9 +75,28 @@ impl CertificateStore {
                 let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account)
                     .await
                     .unwrap();
-                CertificateStore::update(&dns, &bundle).await?;
+                CertificateStore::descrete_update(&dns, &bundle).await?;
             }
         }
+        Ok(())
+    }
+    /**
+     * Replace a certificate bundle:
+     *  - a .pem file
+     *   with intermediate certs and private key)
+     * to nginx-unit certificate store
+     *
+     *  Fail silently.
+     */
+    pub async fn descrete_update(dns: &str, bundle: &str) -> Result<()> {
+        // Remove preceding certificate if it exists
+        let res = CertificateStore::update(&dns, &bundle).await;
+        match res {
+            Ok(res) => {}
+            Err(e) => {
+                println!("{}", e);
+            }
+        };
         Ok(())
     }
     /**
