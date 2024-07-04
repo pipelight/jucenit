@@ -95,6 +95,7 @@ impl CertificateStore {
             Ok(res) => {}
             Err(e) => {
                 println!("{}", e);
+                ConfigFile::purge_http_challenge().await?;
             }
         };
         Ok(())

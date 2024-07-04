@@ -5,10 +5,9 @@ use crate::{ConfigFile, ConfigUnit, NginxConfig};
 // use indexmap::IndexMap;
 use crate::database::entity::{prelude::*, *};
 use migration::{Migrator, MigratorTrait};
-use sea_orm::{
-    prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase,
-};
+use sea_orm::{prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult};
 use sea_orm::{Database, DatabaseConnection};
+use serde_json::json;
 // Logging
 use tracing::{debug, Level};
 // Error Handling
@@ -24,6 +23,32 @@ impl ConfigFile {
     pub async fn remove_from_db(&self) -> Result<()> {
         for unit in &self.unit {
             unit.remove_from_db().await?;
+        }
+        Ok(())
+    }
+    pub async fn purge_http_challenge() -> Result<()> {
+        let db = connect_db().await?;
+
+        let like = json!({"uri":[]});
+        let like = like.to_string();
+
+        let matches = NgMatch::find().all(&db).await.into_diagnostic()?;
+        let challenges: Vec<&ng_match::Model> = matches
+            .iter()
+            .filter(|x| {
+                if let Some(raw_params) = x.raw_params.clone() {
+                    let raw_params: serde_json::Value = serde_json::from_str(&raw_params).unwrap();
+                    return raw_params["uri"]
+                        .to_string()
+                        .contains("/.well-known/acme-challenge/");
+                }
+                return false;
+            })
+            .collect();
+
+        for x in challenges {
+            let x = x.clone();
+            x.delete(&db).await.into_diagnostic()?;
         }
         Ok(())
     }
@@ -123,7 +148,7 @@ impl ConfigUnit {
 mod test {
     use crate::database::entity::{prelude::*, *};
     use crate::database::{connect_db, fresh_db};
-    use crate::{ConfigFile, Match, Nginx, NginxConfig};
+    use crate::{ConfigFile, ConfigUnit, Match, Nginx, NginxConfig};
     use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, MockDatabase};
     use std::path::PathBuf;
     // Logging
@@ -146,6 +171,25 @@ mod test {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn remove_http_challenges() -> Result<()> {
+        set_testing_config().await?;
+        let toml = "
+        uuid = 'random-uuid'
+        listeners = ['*:80']
+        [match]
+        hosts = ['test.com']
+        uri = ['/.well-known/acme-challenge/uuid']
+        [action]
+        share = ['/tmp/jucenit/challenge_uuid.txt']
+        ";
+        let unit = ConfigUnit::from_toml_str(&toml)?;
+        unit.push().await?;
+
+        ConfigFile::purge_http_challenge().await?;
+
+        Ok(())
+    }
     #[tokio::test]
     async fn remove_unit_by_uuid() -> Result<()> {
         set_testing_config().await?;
