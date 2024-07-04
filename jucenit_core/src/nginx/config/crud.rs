@@ -4,8 +4,6 @@ use std::env::temp_dir;
 use tokio::task::spawn_local;
 // Global vars
 use crate::nginx::SETTINGS;
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 // exec
@@ -103,7 +101,7 @@ impl Config {
      * Replace the in place configuration.
      */
     pub async fn set(&self) -> Result<Config> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client
             .put(settings.get_url() + "/config")
@@ -147,7 +145,7 @@ impl Config {
      * Get the nginx-unit configuration as a rust struct.
      */
     pub async fn get() -> Result<Config> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
         let config = reqwest::get(settings.get_url() + "/config")
             .await
             .into_diagnostic()?

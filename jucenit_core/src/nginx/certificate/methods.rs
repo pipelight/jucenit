@@ -1,4 +1,3 @@
-use futures::future::join_all;
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
 // Ssl utils
@@ -17,8 +16,11 @@ use crate::database::entity::{prelude::*, *};
 use sea_orm::{prelude::*, query::*, sea_query::OnConflict, ActiveValue, InsertResult};
 
 // Loop
+use futures::future::{join_all, try_join_all};
+use futures::Future;
 use std::thread::sleep;
 use std::time::{Duration, *};
+use tokio::task::JoinSet;
 
 // Struct
 use super::CertificateInfo;
@@ -34,11 +36,21 @@ impl CertificateStore {
     pub async fn hydrate() -> Result<()> {
         let db = connect_db().await?;
         let hosts = Host::find().all(&db).await.into_diagnostic()?;
-        let domain: Vec<String> = hosts.iter().map(|x| x.domain.clone()).collect();
+        let domains: Vec<String> = hosts.iter().map(|x| x.domain.clone()).collect();
 
-        let parallel = domain.iter().map(Self::hydrate_one);
-
-        join_all(parallel).await;
+        let parallel = domains.iter().map(Self::hydrate_one);
+        try_join_all(parallel).await?;
+        // TODO
+        // Use JoinSet instead of join_all for better error report
+        // let mut set = JoinSet::new();
+        // for host in domains {
+        //     set.spawn(async move {
+        //         let _ = Self::hydrate_one(&host).await.unwrap();
+        //     });
+        // }
+        // for p in parallel {
+        //     p.await?;
+        // }
 
         // Update listeners tls option with fresh certs
         // By updating whole config
@@ -66,6 +78,7 @@ impl CertificateStore {
                 }
             }
             Err(_) => {
+                // println!("{}");
                 let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account)
                     .await
                     .unwrap();
@@ -115,7 +128,7 @@ impl CertificateStore {
      * to nginx-unit certificate store
      */
     async fn add(dns: &str, bundle: &str) -> Result<serde_json::Value> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client
             .put(settings.get_url() + "/certificates/" + dns)
@@ -132,7 +145,7 @@ impl CertificateStore {
      * Remove a certificate from nginx-unit certificate store.
      */
     async fn remove(dns: &str) -> Result<serde_json::Value> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client
             .delete(settings.get_url() + "/certificates/" + &dns)

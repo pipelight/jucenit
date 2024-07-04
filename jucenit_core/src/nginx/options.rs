@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 // Global vars
 use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result};
 // Structs

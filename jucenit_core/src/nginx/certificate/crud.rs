@@ -15,7 +15,7 @@ impl CertificateStore {
      * Get a certificate from nginx-unit certificate store.
      */
     pub async fn get(dns: &str) -> Result<CertificateInfo> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
 
         let mut cert = reqwest::get(settings.get_url() + "/certificates/" + dns + "/chain")
             .await
@@ -35,7 +35,7 @@ impl CertificateStore {
      * Get every certificate from nginx-unit certificate store.
      */
     pub async fn get_all() -> Result<HashMap<String, CertificateInfo>> {
-        let settings = SETTINGS.lock().unwrap().clone();
+        let settings = SETTINGS.lock().await.clone();
         let res = reqwest::get(settings.get_url() + "/certificates")
             .await
             .into_diagnostic()?

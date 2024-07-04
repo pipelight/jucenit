@@ -25,8 +25,9 @@ use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue, InsertResult, Mock
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 // Global vars
-use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+// use once_cell::sync::Lazy;
+// use std::sync::Arc;
+// use tokio::sync::Mutex;
 
 pub async fn connect_db() -> Result<DatabaseConnection> {
     let database_url = "sqlite:////var/spool/jucenit/config.sqlite?mode=rw";

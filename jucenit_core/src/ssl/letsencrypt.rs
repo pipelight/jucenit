@@ -11,7 +11,8 @@ use miette::{Context, Error, IntoDiagnostic, Result};
 // Global vars
 use crate::nginx::SETTINGS;
 use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 // File manipulation
 use std::fs;
@@ -45,7 +46,7 @@ static TLS_PORT: i32 = 443;
 */
 pub async fn letsencrypt_account() -> Result<Arc<Account>> {
     // Create a new ACMEv2 directory for Let's Encrypt.
-    let dir = DirectoryBuilder::new(LETS_ENCRYPT_URL.lock().unwrap().clone())
+    let dir = DirectoryBuilder::new(LETS_ENCRYPT_URL.lock().await.clone())
         .build()
         .await
         .into_diagnostic()?;

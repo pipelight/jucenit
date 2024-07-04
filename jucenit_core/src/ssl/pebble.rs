@@ -1,7 +1,8 @@
 // Global vars
 use crate::nginx::SETTINGS;
 use once_cell::sync::Lazy;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 // Acme
 use acme2::gen_rsa_private_key;
 use acme2::{
@@ -30,7 +31,7 @@ pub async fn pebble_http_client() -> reqwest::Client {
 }
 async fn pebble_directory() -> Arc<Directory> {
     let http_client = pebble_http_client().await;
-    DirectoryBuilder::new(PEBBLE_URL.lock().unwrap().clone())
+    DirectoryBuilder::new(PEBBLE_URL.lock().await.clone())
         .http_client(http_client)
         .build()
         .await
