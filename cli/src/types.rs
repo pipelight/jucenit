@@ -50,6 +50,9 @@ impl Cli {
                 if let Some(file) = args.file {
                     let config = ConfigFile::load(&file)?;
                     config.push().await?;
+                } else if let Some(raw) = args.raw {
+                    let config = ConfigFile::from_toml_str(&raw)?;
+                    config.push().await?;
                 } else {
                     let config = ConfigFile::get()?;
                     config.push().await?;
@@ -101,6 +104,8 @@ pub enum Commands {
 pub struct File {
     #[arg(help = "A configuration file path, example: ./jucenit.toml", value_hint = ValueHint::FilePath)]
     pub file: Option<String>,
+    #[arg(help = "A toml/yaml string", long)]
+    pub raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Parser)]
@@ -155,9 +160,7 @@ mod tests {
     async fn push_config_file() -> Result<()> {
         set_testing_config().await?;
         let mut cmd = Command::cargo_bin("jucenit").into_diagnostic()?;
-        cmd.arg("push")
-            .arg("--file")
-            .arg("../examples/jucenit.toml");
+        cmd.arg("push").arg("../examples/jucenit.toml");
         cmd.assert().success();
         Ok(())
     }
