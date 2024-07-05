@@ -48,6 +48,9 @@ impl CertificateStore {
         let config = ConfigFile::pull().await?;
         config.push().await?;
 
+        // Clean failed challenge routes
+        ConfigFile::purge_http_challenge().await?;
+
         Ok(())
     }
 
@@ -83,7 +86,6 @@ impl CertificateStore {
             Ok(res) => {}
             Err(e) => {
                 println!("{}", e);
-                ConfigFile::purge_http_challenge().await?;
             }
         };
         Ok(())
