@@ -69,12 +69,59 @@ impl ConfigUnit {
             .one(&db)
             .await
             .into_diagnostic()?;
-        let match_ = match_.unwrap();
 
-        let hosts = match_.find_related(Host).all(&db).await.into_diagnostic()?;
-        for host in hosts {
-            // Delete host if not linked to other matches.
-            if host
+        if let Some(match_) = match_ {
+            let hosts = match_.find_related(Host).all(&db).await.into_diagnostic()?;
+            for host in hosts {
+                // Delete host if not linked to other matches.
+                if host
+                    .find_related(NgMatch)
+                    .filter(
+                        Condition::all()
+                            .not()
+                            .add(ng_match::Column::Uuid.eq(&unit.uuid)),
+                    )
+                    .all(&db)
+                    .await
+                    .into_diagnostic()?
+                    .is_empty()
+                {
+                    host.delete(&db).await.into_diagnostic()?;
+                }
+            }
+            let action = match_
+                .find_related(Action)
+                .one(&db)
+                .await
+                .into_diagnostic()?;
+            let action = action.unwrap();
+
+            let listeners = match_
+                .find_related(Listener)
+                .all(&db)
+                .await
+                .into_diagnostic()?;
+            for listener in listeners {
+                // Delete listeners if no related match
+                if listener
+                    .find_related(NgMatch)
+                    .filter(
+                        Condition::all()
+                            .not()
+                            .add(ng_match::Column::Uuid.eq(&unit.uuid)),
+                    )
+                    .all(&db)
+                    .await
+                    .into_diagnostic()?
+                    .is_empty()
+                {
+                    listener.delete(&db).await.into_diagnostic()?;
+                }
+            }
+
+            // Delete action if not linked to other matches.
+            let mut del_action = false;
+            if action
                 .find_related(NgMatch)
                 .filter(
                     Condition::all()
@@ -86,60 +133,14 @@ impl ConfigUnit {
                 .into_diagnostic()?
                 .is_empty()
             {
-                host.delete(&db).await.into_diagnostic()?;
+                del_action = true;
             }
-        }
-        let action = match_
-            .find_related(Action)
-            .one(&db)
-            .await
-            .into_diagnostic()?;
-        let action = action.unwrap();
 
-        let listeners = match_
-            .find_related(Listener)
-            .all(&db)
-            .await
-            .into_diagnostic()?;
-        for listener in listeners {
-            // Delete listeners if no related match
-            if listener
-                .find_related(NgMatch)
-                .filter(
-                    Condition::all()
-                        .not()
-                        .add(ng_match::Column::Uuid.eq(&unit.uuid)),
-                )
-                .all(&db)
-                .await
-                .into_diagnostic()?
-                .is_empty()
-            {
-                listener.delete(&db).await.into_diagnostic()?;
+            match_.delete(&db).await.into_diagnostic()?;
+            // Delete action after match (fk constraint)
+            if del_action {
+                action.delete(&db).await.into_diagnostic()?;
             }
-        }
-
-        // Delete action if not linked to other matches.
-        let mut del_action = false;
-        if action
-            .find_related(NgMatch)
-            .filter(
-                Condition::all()
-                    .not()
-                    .add(ng_match::Column::Uuid.eq(&unit.uuid)),
-            )
-            .all(&db)
-            .await
-            .into_diagnostic()?
-            .is_empty()
-        {
-            del_action = true;
-        }
-
-        match_.delete(&db).await.into_diagnostic()?;
-        // Delete action after match (fk constraint)
-        if del_action {
-            action.delete(&db).await.into_diagnostic()?;
         }
         Ok(())
     }

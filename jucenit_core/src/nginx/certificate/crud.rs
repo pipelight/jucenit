@@ -103,7 +103,8 @@ mod tests {
      */
     async fn gen_fake_cert(dns: &str) -> Result<()> {
         let bundle = FakeCertificate::get(dns)?;
-        let res = CertificateStore::update(dns, &bundle).await?;
+        let _ = CertificateStore::remove(dns).await;
+        let res = CertificateStore::add(dns, &bundle).await?;
         Ok(())
     }
 

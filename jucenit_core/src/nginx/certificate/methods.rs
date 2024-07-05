@@ -52,8 +52,6 @@ impl CertificateStore {
     }
 
     async fn hydrate_one(host: &String) -> Result<()> {
-        let account = ssl::set_account().await?.clone();
-
         let dns = host.to_owned();
         // For ACME limitation rate reason
         // Check if a certificate already exists
@@ -61,18 +59,11 @@ impl CertificateStore {
         match cert {
             Ok(res) => {
                 if res.validity.should_renew()? {
-                    let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
-                    CertificateStore::descrete_update(&dns, &bundle)
-                        .await
-                        .unwrap();
+                    CertificateStore::descrete_update(&dns).await?;
                 }
             }
             Err(_) => {
-                // println!("{}");
-                let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account)
-                    .await
-                    .unwrap();
-                CertificateStore::descrete_update(&dns, &bundle).await?;
+                CertificateStore::descrete_update(&dns).await?;
             }
         }
         Ok(())
@@ -85,9 +76,9 @@ impl CertificateStore {
      *
      *  Fail silently.
      */
-    pub async fn descrete_update(dns: &str, bundle: &str) -> Result<()> {
+    pub async fn descrete_update(dns: &str) -> Result<()> {
         // Remove preceding certificate if it exists
-        let res = CertificateStore::update(&dns, &bundle).await;
+        let res = CertificateStore::update(&dns).await;
         match res {
             Ok(res) => {}
             Err(e) => {
@@ -103,10 +94,13 @@ impl CertificateStore {
      *   with intermediate certs and private key)
      * to nginx-unit certificate store
      */
-    pub async fn update(dns: &str, bundle: &str) -> Result<serde_json::Value> {
+    pub async fn update(dns: &str) -> Result<serde_json::Value> {
+        let account = ssl::set_account().await?.clone();
+        let bundle = LetsencryptCertificate::get_cert_bundle(&dns, &account).await?;
         // Remove preceding certificate if it exists
         let _ = CertificateStore::remove(dns).await;
-        let res = CertificateStore::add(dns, bundle).await?;
+
+        let res = CertificateStore::add(dns, &bundle).await?;
         Ok(res)
     }
     /**
@@ -137,7 +131,7 @@ impl CertificateStore {
      *   with intermediate certs and private key)
      * to nginx-unit certificate store
      */
-    async fn add(dns: &str, bundle: &str) -> Result<serde_json::Value> {
+    pub async fn add(dns: &str, bundle: &str) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client
@@ -154,7 +148,7 @@ impl CertificateStore {
     /**
      * Remove a certificate from nginx-unit certificate store.
      */
-    async fn remove(dns: &str) -> Result<serde_json::Value> {
+    pub async fn remove(dns: &str) -> Result<serde_json::Value> {
         let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client
@@ -229,22 +223,10 @@ mod tests {
     }
     // #[tokio::test]
     // #[serial]
-    async fn update_fake_cert() -> Result<()> {
-        set_testing_config().await?;
-        let dns = "example.com";
-        let bundle = FakeCertificate::get(dns)?;
-        let res = CertificateStore::update(dns, &bundle).await?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-    // #[tokio::test]
-    // #[serial]
     async fn update_cert_letsencrypt() -> Result<()> {
         set_testing_config().await?;
         let dns = "example.com";
-        let account = ssl::set_account().await?.clone();
-        let bundle = LetsencryptCertificate::get_cert_bundle(dns, &account).await?;
-        let res = CertificateStore::update(dns, &bundle).await?;
+        let res = CertificateStore::update(dns).await?;
         println!("{:#?}", res);
         Ok(())
     }
