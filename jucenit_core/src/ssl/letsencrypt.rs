@@ -15,14 +15,16 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 // File manipulation
-use std::fs;
-use std::io::Write;
+use tokio::fs;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use std::path::{Path, PathBuf};
 use toml::toml;
 use uuid::Uuid;
 // Crate structs
-use super::pebble::{pebble_account, pebble_http_client, PEBBLE_CERT_URL};
+use super::pebble::*;
 use crate::{Action, ConfigUnit, Match};
-use openssl::x509::X509;
+use openssl::{pkey::PKey, x509::X509};
 
 // Production url
 pub static LETS_ENCRYPT_URL: Lazy<Arc<Mutex<String>>> = Lazy::new(|| {
@@ -40,25 +42,79 @@ static HTTP_PORT: i32 = 80;
 static TLS_PORT: i32 = 443;
 
 /**
-* Create an ACME account to use for the order. For production
-* purposes, you should keep the account (and private key), so
-* you can renew your certificate easily.
+* Create a new ACMEv2 directory for Let's Encrypt.
 */
-pub async fn letsencrypt_account() -> Result<Arc<Account>> {
-    // Create a new ACMEv2 directory for Let's Encrypt.
+async fn letsencrypt_directory() -> Result<Arc<Directory>> {
+    let http_client = pebble_http_client().await;
     let dir = DirectoryBuilder::new(LETS_ENCRYPT_URL.lock().await.clone())
         .build()
         .await
         .into_diagnostic()?;
+    Ok(dir)
+}
+/**
+* Create an ACME account to use for the order. For production
+* purposes, you should keep the account (and private key), so
+* you can renew your certificate easily.
+*/
+pub async fn set_account() -> Result<Arc<Account>> {
+    // Set a Private key path
+    let file_path = "/var/spool/jucenit/ssl_account_private_key.pem".to_owned();
+    let path = Path::new(&file_path);
 
-    let mut builder = AccountBuilder::new(dir.clone());
-    let account = builder
-        .contact(vec!["mailto:areskul@areskul.com".to_string()])
-        .terms_of_service_agreed(true)
-        .build()
-        .await
-        .into_diagnostic()?;
-    Ok(account)
+    #[cfg(debug_assertions)]
+    let dir = pebble_directory().await?;
+    #[cfg(not(debug_assertions))]
+    let dir = letsencrypt_directory().await?;
+
+    // Retrieve previous account
+    if path.exists() {
+        let message = format!("Couldn't open file at: {:?}", file_path);
+        let data = fs::read(file_path.clone()).await.into_diagnostic()?;
+        let pkey = PKey::private_key_from_pem(&data).into_diagnostic()?;
+
+        let mut builder = AccountBuilder::new(dir.clone());
+        let account = builder
+            .private_key(pkey)
+            .contact(vec!["mailto:areskul@areskul.com".to_string()])
+            .terms_of_service_agreed(true)
+            .only_return_existing(true)
+            .build()
+            .await
+            .into_diagnostic()?;
+
+        Ok(account)
+
+    // Create new account
+    } else {
+        let mut builder = AccountBuilder::new(dir.clone());
+        let account = builder
+            .contact(vec!["mailto:areskul@areskul.com".to_string()])
+            .terms_of_service_agreed(true)
+            .build()
+            .await
+            .into_diagnostic()?;
+
+        let pkey = account.private_key();
+        let private_key = pkey.private_key_to_pem_pkcs8().into_diagnostic()?;
+
+        //  Write private key to file
+        let tmp_dir = "/var/spool/jucenit";
+        let message = format!("Couldn't create dir: {:?}", tmp_dir);
+        fs::create_dir_all(tmp_dir)
+            .await
+            .into_diagnostic()
+            .wrap_err(message)?;
+
+        let message = format!("Couldn't create file at: {:?}", file_path);
+        let mut file = fs::File::create(file_path.clone())
+            .await
+            .into_diagnostic()
+            .wrap_err(message)?;
+        file.write_all(&private_key).await.into_diagnostic()?;
+
+        Ok(account)
+    }
 }
 
 /**
@@ -127,7 +183,7 @@ async fn make_jucenit_http_challenge_config(
 /**
 * Create tmp challenge files and nginx-unit routes
 */
-fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
+async fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     // Write challenge key to temporary file
     let data = challenge.key_authorization().into_diagnostic()?.unwrap();
 
@@ -135,16 +191,18 @@ fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     let tmp_dir = "/tmp/jucenit";
     let message = format!("Couldn't create dir: {:?}", tmp_dir);
     fs::create_dir_all(tmp_dir)
+        .await
         .into_diagnostic()
         .wrap_err(message)?;
 
     let file_path = format!("/tmp/jucenit/challenge_{}.txt", dns);
     let message = format!("Couldn't create file at: {:?}", file_path);
     let mut file = fs::File::create(file_path.clone())
+        .await
         .into_diagnostic()
         .wrap_err(message)?;
     let bytes = data.as_bytes();
-    file.write_all(bytes).into_diagnostic()?;
+    file.write_all(bytes).await.into_diagnostic()?;
 
     Ok(())
 }
@@ -152,10 +210,10 @@ fn set_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
 /**
 * Delete tmp challenge files and nginx-unit routes
 */
-fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
+async fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> {
     let tmp_dir = "/tmp/jucenit";
     let path = format!("{}/challenge_{}.txt", tmp_dir, dns);
-    fs::remove_file(path).into_diagnostic()?;
+    fs::remove_file(path).await.into_diagnostic()?;
     Ok(())
 }
 
@@ -221,7 +279,7 @@ impl Letsencrypt {
     }
     async fn http_challenge(dns: &str, auth: Authorization, challenge: &Challenge) -> Result<()> {
         // Create route to challenge key file
-        set_challenge_key_file(dns, &challenge)?;
+        set_challenge_key_file(dns, &challenge).await?;
         let unit = make_jucenit_http_challenge_config(dns, &challenge).await?;
         unit.push().await?;
 
@@ -236,7 +294,7 @@ impl Letsencrypt {
         );
 
         // Delete route to challenge key file
-        del_challenge_key_file(dns, &challenge)?;
+        del_challenge_key_file(dns, &challenge).await?;
         unit.remove().await?;
 
         let authorization = auth
@@ -261,7 +319,7 @@ impl Letsencrypt {
         challenge: &Challenge,
     ) -> Result<()> {
         // Create tls cert with challenge info
-        set_challenge_key_file(dns, &challenge)?;
+        set_challenge_key_file(dns, &challenge).await?;
 
         let bundle = make_jucenit_tls_alpn_challenge_config(dns, &challenge)?;
         // JuceConfig::add_unit((match_.clone(), unit)).await?;
@@ -277,7 +335,7 @@ impl Letsencrypt {
         );
 
         // Delete route to challenge key file
-        del_challenge_key_file(dns, &challenge)?;
+        del_challenge_key_file(dns, &challenge).await?;
         // JuceConfig::del_unit(match_.clone()).await?;
 
         let authorization = auth
@@ -321,35 +379,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn set_local_creds() -> Result<()> {
-        let res = pebble_account().await?;
+    async fn set_creds() -> Result<()> {
+        let res = set_account().await?;
         Ok(())
     }
-    // #[tokio::test]
-    async fn set_remote_creds() -> Result<()> {
-        let res = letsencrypt_account().await?;
-        println!("{:#?}", res);
-        Ok(())
-    }
-
-    // #[tokio::test]
-    async fn get_letsencrypt_cert() -> Result<()> {
+    #[tokio::test]
+    async fn get_cert() -> Result<()> {
         set_testing_config().await?;
 
         let dns = "example.com";
-        let account = letsencrypt_account().await?.clone();
+        let account = set_account().await?.clone();
         let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
         // println!("{:#?}", res);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn get_pebble_cert() -> Result<()> {
-        set_testing_config().await?;
-
-        let dns = "example.com";
-        let account = pebble_account().await?.clone();
-        let res = Letsencrypt::get_cert_bundle(dns, &account).await?;
         Ok(())
     }
 }

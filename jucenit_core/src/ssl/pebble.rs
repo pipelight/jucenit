@@ -29,28 +29,12 @@ pub async fn pebble_http_client() -> reqwest::Client {
         .build()
         .unwrap()
 }
-async fn pebble_directory() -> Arc<Directory> {
+pub async fn pebble_directory() -> Result<Arc<Directory>> {
     let http_client = pebble_http_client().await;
-    DirectoryBuilder::new(PEBBLE_URL.lock().await.clone())
+    let dir = DirectoryBuilder::new(PEBBLE_URL.lock().await.clone())
         .http_client(http_client)
         .build()
         .await
-        .unwrap()
-}
-/**
-* Create an ACME account to use for the order
-* against letsencrypt/pebble acme local testing server
-*/
-pub async fn pebble_account() -> Result<Arc<Account>> {
-    let dir = pebble_directory().await;
-
-    let mut builder = AccountBuilder::new(dir);
-    let account = builder
-        .contact(vec!["mailto:hello@lcas.dev".to_string()])
-        .terms_of_service_agreed(true)
-        .build()
-        .await
-        .unwrap();
-
-    Ok(account)
+        .into_diagnostic()?;
+    Ok(dir)
 }

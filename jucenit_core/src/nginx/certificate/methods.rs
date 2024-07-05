@@ -52,10 +52,7 @@ impl CertificateStore {
     }
 
     async fn hydrate_one(host: &String) -> Result<()> {
-        #[cfg(debug_assertions)]
-        let account = ssl::pebble_account().await?.clone();
-        #[cfg(not(debug_assertions))]
-        let account = ssl::letsencrypt_account().await?.clone();
+        let account = ssl::set_account().await?.clone();
 
         let dns = host.to_owned();
         // For ACME limitation rate reason
@@ -245,7 +242,7 @@ mod tests {
     async fn update_cert_letsencrypt() -> Result<()> {
         set_testing_config().await?;
         let dns = "example.com";
-        let account = ssl::pebble::pebble_account().await?.clone();
+        let account = ssl::set_account().await?.clone();
         let bundle = LetsencryptCertificate::get_cert_bundle(dns, &account).await?;
         let res = CertificateStore::update(dns, &bundle).await?;
         println!("{:#?}", res);
