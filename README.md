@@ -154,7 +154,7 @@ automation:
 
 global improvements:
 
-- [] add a verbosity flag and better tracing
+- [ ] add a verbosity flag and better tracing
 
 ## Authors note
 
