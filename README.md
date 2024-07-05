@@ -135,19 +135,29 @@ to your actual nixos configuration.
 
 ## Roadmap
 
-- [x]: add command to edit global configuration with favorite editor.
-- [ ]: add "push -d" to remove a chunk from global configuration.
-- [ ]: add optioin to allow passing a toml string instead of a config file path to the executable.
-- [x]: add support for acme challenge http-01
-- [ ]: add support for acme challenge tls-ALPN-01
-- [x]: parallel certificate renewal
-- [ ]: make a daemon that watches certificates validity
-- [x]: provide a template systemd unit (with nginx-unit sandboxing of course)
+cli:
+
+- [x] add command to edit global configuration with favorite editor.
+- [x] add option to allow passing a toml string instead of a config file path to the executable.
+- [ ] add "push -d" to remove a chunk from global configuration.
+
+ssl certificates:
+
+- [x] parallel certificate renewal
+- [x] provide a template systemd unit (with nginx-unit sandboxing of course)
+- [x] add support for acme challenge http-01
+- [ ] add support for acme challenge tls-ALPN-01
+
+automation:
+
+- [x] make a daemon that watches certificates validity
+
+global improvements:
+
+- [] add a verbosity flag and better tracing
 
 ## Authors note
 
 _We need better tooling
-to easily share our creations to the world._
-
-_We need to be able to focus only on the code that truely matters,
-the code that is good, that is creative and that free individuals._
+to be able to focus only on the code that matters,
+and to easily share our makings to the world._
