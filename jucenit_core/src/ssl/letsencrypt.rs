@@ -45,7 +45,6 @@ static TLS_PORT: i32 = 443;
 * Create a new ACMEv2 directory for Let's Encrypt.
 */
 async fn letsencrypt_directory() -> Result<Arc<Directory>> {
-    let http_client = pebble_http_client().await;
     let dir = DirectoryBuilder::new(LETS_ENCRYPT_URL.lock().await.clone())
         .build()
         .await
