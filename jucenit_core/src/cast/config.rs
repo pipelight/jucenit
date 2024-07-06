@@ -1,14 +1,15 @@
 use crate::nginx::Config as NginxConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utils::teleport::Portal;
 // Error Handling
 use crate::error::{TomlError, YamlError};
 use miette::{Error, IntoDiagnostic, Result};
 // Filesystem
 use std::fs;
 use std::path::Path;
-use utils::files::FileType;
+
+// use utils::{files::FileType, teleport::Portal};
+use pipelight::utils::{files::FileType, teleport::Portal};
 
 // Config file related structs
 /**

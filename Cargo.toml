@@ -4,6 +4,5 @@ members = [
   "cli",          # command line definition
   "jucenit",      # binary entrypoint
   "jucenit_core", # requests to nginx API
-  "utils",        # fs,proc manipulation
   "migration",    # generate database
 ]
