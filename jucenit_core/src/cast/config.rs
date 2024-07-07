@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 // use utils::{files::FileType, teleport::Portal};
-use pipelight::utils::{files::FileType, teleport::Portal};
+use pipelight::utils::{error::PipelightError, files::FileType, teleport::Portal};
 
 // Config file related structs
 /**
@@ -26,9 +26,9 @@ impl Config {
      * Search the filesystem for a config file.
      */
     pub fn get() -> Result<Config> {
-        let mut portal = Portal::new()?;
+        let mut portal = Portal::new().into_diagnostic()?;
         portal.seed("jucenit");
-        let res = portal.search()?;
+        let res = portal.search().into_diagnostic()?;
         let config = Config::load(&portal.target.file_path.unwrap())?;
         Ok(config)
     }
