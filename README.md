@@ -35,6 +35,9 @@ hosts = ["example.com"]
 proxy = "http://127.0.0.1:8888"
 ```
 
+On queries like "https://example.com"
+it redirects to the port 8888 on private network.
+
 Or for file sharing
 
 ```toml
@@ -44,10 +47,13 @@ uuid = "f37490cb-d4eb-4f37-bb85-d39dad6a21ab"
 listeners = ["*:443"]
 [unit.match]
 hosts = ["test.com"]
-uri = "/files"
+uri = "/static"
 [unit.action]
-share = ["/path/to/my_files"]
+share = ["/home/website/static"]
 ```
+
+On queries like "https://test.com/static/index.html"
+it redirects to /home/website/static/index.html
 
 And many more possibilities at [nginx unit](https://github.com/nginx/unit).
 Update the global configuration with your configuration chunks.
