@@ -12,6 +12,7 @@ pkgs.rustPlatform.buildRustPackage rec {
     lockFile = ./Cargo.lock;
     outputHashes = {
       # "acme2-0.5.2" = lib.fakeSha256;
+      "cast-0.5.8" = "sha256-Dva7FTBYaJQiVz+fBLrqFZq0VnNAEhyfIwy5JP2DVPo=";
       "acme2-0.5.2" = "sha256-tais3v7bbJDcIJY+WjTxzulKDoDlsXG9VT7MVU/VpLI=";
     };
   };
