@@ -66,22 +66,18 @@ pub struct Config {
     pub listeners: IndexMap<String, ListenerOpts>,
     pub routes: IndexMap<String, Vec<Route>>,
     pub settings: Option<serde_json::Value>,
+    pub access_log: Option<serde_json::Value>,
 }
 impl Default for Config {
     fn default() -> Self {
-        let settings = Some(
-            serde_json::from_str(
-                "
-          {
-            \"http\": {
-              \"log_route\": true
-            }
+        let settings = Some(serde_json::json!({
+          "http": {
+            "log_route": true
           }
-            ",
-            )
-            .into_diagnostic()
-            .unwrap(),
-        );
+        }));
+        let access_log = Some(serde_json::json!({
+          "path": "/var/log/unit/access.log"
+        }));
 
         let listeners = IndexMap::new();
 
@@ -92,6 +88,7 @@ impl Default for Config {
             routes,
             listeners,
             settings,
+            access_log,
         }
     }
 }
