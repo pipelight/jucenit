@@ -21,7 +21,7 @@
         packages.default = pkgs.callPackage ./default.nix {};
         devShells.default = pkgs.callPackage ./shell.nix {};
 
-        nixpkgs.options.services = with nixpkgs.lib; {
+        nixpkgs.lib.options.services = with nixpkgs.lib; {
           jucenit.enable = mkEnableOption ''
             Toggle the module
           '';
