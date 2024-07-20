@@ -8,18 +8,21 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     rust-overlay,
     flake-utils,
-    self,
   } @ inputs:
-    with inputs;
-      flake-utils.lib.eachDefaultSystem (
-        system: let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in rec {
-          packages.default = pkgs.callPackage ./default.nix {};
-          devShells.default = pkgs.callPackage ./shell.nix {};
-        }
-      );
+    flake-utils.lib.eachDefaultSystem
+    (
+      system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in rec {
+        packages.default = pkgs.callPackage ./default.nix {};
+        devShells.default = pkgs.callPackage ./shell.nix {};
+        import = [
+          ./flake.services.nix
+        ];
+      }
+    );
 }

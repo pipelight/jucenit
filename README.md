@@ -105,6 +105,24 @@ See detailed project structure and functionning at [INTERNALS.md](https://github
 
 ## Install
 
+### with Nix and Nixos
+
+First, add the flake url to your flakes **inputs**.
+
+```nix
+inputs = {
+    jucenit.url = "github:pipelight/jucenit";
+};
+```
+
+And enable the service in your configuration file;
+
+```nix
+services.jucenit.enable = true;
+```
+
+### with Cargo
+
 You first need a running instance of nginx-unit.
 See the [installation guide](https://unit.nginx.org/installation/):
 
@@ -116,28 +134,22 @@ unitd --control '127.0.0.1:8080'
 
 So it listens on tcp port 8080 instead of default unix socket.
 
-### with Cargo
-
 Install on any linux distribution with cargo.
 
 ```sh
 cargo install --git https://github.com/pipelight/jucenit
 ```
 
-### with Nixos
+You need to run a background deamon for autossl.
 
-Install on Nixos.
+Create a file like a systemd-unit file or an initd file
+for autossl.
 
-First, add the flake url to your flakes **inputs**.
+It must run the following command:
 
-```nix
-inputs = {
-    jucenit.url = "github:pipelight/jucenit";
-};
+```sh
+jucenit ssl --watch
 ```
-
-Then add a nix configuration like what is inside `flake.example.nix`
-to your actual nixos configuration.
 
 ## Roadmap
 
@@ -164,6 +176,6 @@ global improvements:
 
 ## Authors note
 
-_We need better tooling
-to be able to focus only on the code that matters,
-and to easily share our makings to the world._
+_We need better tooling to easily share our makings to the world._
+
+Licensed under GNU GPLv2 Copyright (C) 2023 Areskul
