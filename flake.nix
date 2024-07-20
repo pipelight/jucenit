@@ -20,7 +20,8 @@
       in rec {
         packages.default = pkgs.callPackage ./default.nix {};
         devShells.default = pkgs.callPackage ./shell.nix {};
-        options.services = with nixpkgs.lib; {
+
+        nixpkgs.options.services = with nixpkgs.lib; {
           jucenit.enable = mkEnableOption ''
             Toggle the module
           '';
