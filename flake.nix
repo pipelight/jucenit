@@ -21,12 +21,6 @@
         packages.default = pkgs.callPackage ./default.nix {};
         devShells.default = pkgs.callPackage ./shell.nix {};
 
-        nixpkgs.lib.options.services = with nixpkgs.lib; {
-          jucenit.enable = mkEnableOption ''
-            Toggle the module
-          '';
-        };
-
         import = [
           ./flake.services.nix
         ];

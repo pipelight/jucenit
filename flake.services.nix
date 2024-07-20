@@ -4,8 +4,10 @@
   lib,
   inputs,
   ...
-}: let
-  cfg = {
+}:
+with lib; let
+  cfg = config.services.jucenit;
+  params = {
     # Package configuration variables
     user = "unit";
     group = "unit";
@@ -13,10 +15,16 @@
     logDir = "/var/log/unit";
     challengDir = "/tmp/jucenit";
   };
-in
-  lib.mkIf config.services.jucenit.enable {
-    users.users.${cfg.user} = {
-      group = "${cfg.group}";
+in {
+  options.services = {
+    jucenit.enable = mkEnableOption ''
+      Toggle the module
+    '';
+  };
+
+  config = mkIf cfg.enable {
+    users.users.${params.user} = {
+      group = "${params.group}";
       isSystemUser = true;
     };
     users.groups = {
@@ -37,16 +45,16 @@ in
 
     systemd.tmpfiles.rules = [
       # Nginx-unit file permissions (bit mode)
-      "d '${cfg.stateDir}' 0750 ${cfg.user} ${cfg.group} - -"
-      "Z '${cfg.stateDir}' 0750 ${cfg.user} ${cfg.group} - -"
-      "d '${cfg.logDir}' 0750 ${cfg.user} ${cfg.group} - -"
-      "Z '${cfg.logDir}' 0750 ${cfg.user} ${cfg.group} - -"
+      "d '${params.stateDir}' 0750 ${params.user} ${params.group} - -"
+      "Z '${params.stateDir}' 0750 ${params.user} ${params.group} - -"
+      "d '${params.logDir}' 0750 ${params.user} ${params.group} - -"
+      "Z '${params.logDir}' 0750 ${params.user} ${params.group} - -"
 
       # Jucenit file permissions
-      "d '/var/spool/jucenit' 0774 ${cfg.user} users - -"
-      "Z '/var/spool/jucenit' 0774 ${cfg.user} users - -"
-      "d '/tmp/jucenit' 774 ${cfg.user} users - -"
-      "Z '/tmp/jucenit' 774 ${cfg.user} users - -"
+      "d '/var/spool/jucenit' 0774 ${params.user} users - -"
+      "Z '/var/spool/jucenit' 0774 ${params.user} users - -"
+      "d '/tmp/jucenit' 774 ${params.user} users - -"
+      "Z '/tmp/jucenit' 774 ${params.user} users - -"
     ];
 
     ################################################
@@ -63,7 +71,7 @@ in
         in ''
           ${jucenit} ssl --watch
         '';
-        ReadWritePaths = [cfg.stateDir cfg.logDir cfg.challengDir];
+        ReadWritePaths = [params.stateDir params.logDir params.challengDir];
       };
     };
 
@@ -98,8 +106,8 @@ in
           ${pkgs.unit}/bin/unitd \
             --control '127.0.0.1:8080' \
             --pid '/run/unit/unit.pid' \
-            --log '${cfg.logDir}/unit.log' \
-            --statedir '${cfg.stateDir}' \
+            --log '${params.logDir}/unit.log' \
+            --statedir '${params.stateDir}' \
             --tmpdir '/tmp' \
             --user unit \
             --group unit
@@ -108,7 +116,7 @@ in
         RuntimeDirectory = "unit";
         RuntimeDirectoryMode = "0750";
         # Access write directories
-        ReadWritePaths = [cfg.stateDir cfg.logDir cfg.challengDir];
+        ReadWritePaths = [params.stateDir params.logDir params.challengDir];
         # Security
         NoNewPrivileges = true;
         # Sandboxing
@@ -133,4 +141,5 @@ in
         SystemCallArchitectures = "native";
       };
     };
-  }
+  };
+}
