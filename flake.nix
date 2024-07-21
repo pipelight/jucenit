@@ -18,12 +18,11 @@
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
       in rec {
-        packages.default = pkgs.callPackage ./default.nix {};
+        packages.default = pkgs.callPackage ./package.nix {};
         devShells.default = pkgs.callPackage ./shell.nix {};
-
-        import = [
-          ./flake.services.nix
-        ];
+        nixosModules = {
+          jucenit = ./module.nix;
+        };
       }
     );
 }
