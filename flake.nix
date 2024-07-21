@@ -13,16 +13,25 @@
     rust-overlay,
     flake-utils,
   } @ inputs:
-    flake-utils.lib.eachDefaultSystem
-    (
-      system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in rec {
-        packages.default = pkgs.callPackage ./package.nix {};
-        devShells.default = pkgs.callPackage ./shell.nix {};
-        nixosModules = {
-          jucenit = ./module.nix;
-        };
-      }
-    );
+  # flake-utils.lib.eachDefaultSystem
+  # (
+  #   system: let
+  #     pkgs = nixpkgs.legacyPackages.${system};
+  #   in rec {
+  #     packages.default = pkgs.callPackage ./package.nix {};
+  #     devShells.default = pkgs.callPackage ./shell.nix {};
+  #     nixosModules = {
+  #       jucenit = ./module.nix;
+  #     };
+  #   }
+  # );
+  let
+    pkgs = nixpkgs.legacyPackages.x86_64-linux;
+  in {
+    packages.x86_64-linux.default = pkgs.callPackage ./package.nix {};
+    devShells.x86_64-linux.default = pkgs.callPackage ./shell.nix {};
+    nixosModules = {
+      jucenit = ./module.nix;
+    };
+  };
 }
