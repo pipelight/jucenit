@@ -116,7 +116,7 @@ in {
         RuntimeDirectory = "unit";
         RuntimeDirectoryMode = "0750";
         # Access write directories
-        ReadWritePaths = [params.stateDir params.logDir params.challengDir];
+        ReadWritePaths = [params.stateDir params.logDir];
         # Security
         NoNewPrivileges = true;
         # Sandboxing

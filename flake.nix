@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs = {
@@ -12,26 +13,29 @@
     nixpkgs,
     rust-overlay,
     flake-utils,
+    flake-parts,
   } @ inputs:
-  # flake-utils.lib.eachDefaultSystem
-  # (
-  #   system: let
-  #     pkgs = nixpkgs.legacyPackages.${system};
-  #   in rec {
-  #     packages.default = pkgs.callPackage ./package.nix {};
-  #     devShells.default = pkgs.callPackage ./shell.nix {};
-  #     nixosModules = {
-  #       jucenit = ./module.nix;
-  #     };
-  #   }
-  # );
-  let
-    pkgs = nixpkgs.legacyPackages.x86_64-linux;
-  in {
-    packages.x86_64-linux.default = pkgs.callPackage ./package.nix {};
-    devShells.x86_64-linux.default = pkgs.callPackage ./shell.nix {};
-    nixosModules = {
-      jucenit = ./module.nix;
+    flake-parts.lib.mkFlake {
+      inherit inputs;
+    } {
+      flake = {
+        nixosModules = {
+          jucenit = ./module.nix;
+        };
+      };
+
+      systems =
+        flake-utils.lib.allSystems;
+      perSystem = {
+        config,
+        self,
+        inputs,
+        pkgs,
+        system,
+        ...
+      }: {
+        packages.default = pkgs.callPackage ./package.nix {};
+        devShells.default = pkgs.callPackage ./shell.nix {};
+      };
     };
-  };
 }
