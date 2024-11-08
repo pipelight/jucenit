@@ -10,3 +10,4 @@ miette = { version = "7.2.0", features = ["fancy"] }
 cli = { path = "../cli" }
 log = "0.4.21"
 tokio = { version = "1.37.0", features = ["full"] }
+env_logger = "0.11.5"

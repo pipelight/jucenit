@@ -7,8 +7,10 @@ use jucenit_core::nginx::CertificateStore;
 // Serde
 use serde::{Deserialize, Serialize};
 // Error Handling
+use env_logger::Builder;
+use log::LevelFilter;
 use miette::Result;
-//
+
 use jucenit_core::{ConfigFile, NginxConfig};
 
 /*
@@ -45,6 +47,17 @@ impl Cli {
     }
     pub async fn run() -> Result<()> {
         let cli = Cli::parse();
+        // Set verbosity
+        let verbosity = cli.verbose.log_level_filter();
+        std::env::set_var("JUCENIT_LOG", verbosity.to_string().to_lowercase());
+        Builder::from_env("JUCENIT_LOG")
+            .filter_module("sqlx", LevelFilter::Off)
+            .filter_module("sea_orm", LevelFilter::Off)
+            .filter_module("hyper_util", LevelFilter::Off)
+            .filter_module("mio", LevelFilter::Off)
+            .filter_module("tracing", LevelFilter::Off)
+            .init();
+
         match cli.commands {
             Commands::Push(args) => {
                 if let Some(file) = args.file {

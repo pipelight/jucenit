@@ -5,6 +5,7 @@ use tokio::task::spawn_local;
 // Global vars
 use crate::nginx::SETTINGS;
 // Error Handling
+use log::{debug, error, info, warn};
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 // exec
 use crate::nginx::certificate::CertificateStore;
@@ -98,6 +99,9 @@ impl Config {
      * Replace the in place configuration.
      */
     pub async fn set(&self) -> Result<Config> {
+        let json = serde_json::to_string_pretty(&self).into_diagnostic()?;
+        info!("new nginx-unit configuration:\n{}", &json);
+
         let settings = SETTINGS.lock().await.clone();
         let client = reqwest::Client::new();
         let res = client

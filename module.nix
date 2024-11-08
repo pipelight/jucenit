@@ -10,7 +10,7 @@ with lib; let
   params = {
     # Package configuration variables
     user = "unit";
-    group = "unit";
+    group = "users";
     stateDir = "/var/spool/unit";
     logDir = "/var/log/unit";
     challengDir = "/tmp/jucenit";

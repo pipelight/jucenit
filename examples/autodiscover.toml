@@ -1,0 +1,35 @@
+# See https://wiki.mozilla.org/Thunderbird:Autoconfiguration:ConfigFileFormat
+#  for keywords and choices
+[provider]
+# Settings for the main domain to be applied as defaults regardless of specified email addresses
+domains = ['example.org', 'users.example.org']
+id = 'example.org'
+in_auth = ['password-cleartext']
+in_host = 'imap.example.org'
+in_port = 143
+in_socket = 'STARTTLS'
+in_type = 'imap'
+in_user = '%EMAILADDRESS%'
+name_display = 'example.org Mail Services - some relevant mission statement'
+name_short = '%id%'
+out_auth = ['password-cleartext']
+out_host = 'smtp.example.org'
+out_port = 587
+out_socket = 'STARTTLS'
+out_type = 'smtp'
+out_user = '%in_user%'
+
+[domain.'subdomain.example.org']
+in_user = '%EMAILLOCALPART%_test_accounts'
+in_host = 'test.mail.example.org'
+
+[domain.'example.org']
+# Settings for the main domain to be applied when a Mail address was specified
+in_user = "mbox-##local_part##"
+
+[user.'ceo@example.org']
+in_user = '%EMALLOCALPART%-example@office365.example.org'
+in_host = 'rain-cloud.example.org'
+out_host = 'smtp.example.org'
+in_auth = ['password-cleartext', 'OAuth2']
+out_auth = ['password-cleartext', 'OAuth2']

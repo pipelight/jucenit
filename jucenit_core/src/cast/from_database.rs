@@ -11,8 +11,9 @@ use sea_orm::{
 };
 use sea_orm::{Database, DatabaseConnection};
 // Logging
-use tracing::{debug, Level};
+// use tracing::{debug, Level};
 // Error Handling
+use log::{debug, info};
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
 // Fs
@@ -52,6 +53,7 @@ impl ConfigFile {
 
             config.unit.push(unit);
         }
+        info!("Nginx-unit config:\n{:#?}", &config);
         Ok(config)
     }
     pub async fn edit(&self) -> Result<()> {

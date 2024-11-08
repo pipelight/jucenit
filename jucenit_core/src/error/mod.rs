@@ -7,16 +7,10 @@ use std::{convert, fmt, option};
 use thiserror::Error;
 
 #[derive(Error, Diagnostic, Debug)]
-pub enum CastError {
+pub enum LibError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     JsonError(#[from] JsonError),
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    YamlError(#[from] YamlError),
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    TomlError(#[from] TomlError),
 }
 
 /**
