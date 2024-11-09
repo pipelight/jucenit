@@ -216,6 +216,33 @@ async fn del_challenge_key_file(dns: &str, challenge: &Challenge) -> Result<()> 
     Ok(())
 }
 
+/**
+* Save fullchain file to disk.
+*/
+async fn save_fullchain_file(dns: &str, pem: &str) -> Result<()> {
+    let cert_dir = format!("/var/spool/jucenit/certs/{}", dns);
+    let cert_file = format!("/var/spool/jucenit/certs/{}/fullchain.pem", dns);
+
+    fs::create_dir_all(cert_dir).await.into_diagnostic()?;
+    let mut file = fs::File::create(cert_file).await.into_diagnostic()?;
+    file.write_all(pem.as_bytes()).await.into_diagnostic()?;
+
+    Ok(())
+}
+/**
+* Save private key file to disk.
+*/
+async fn save_privkey_file(dns: &str, pem: &str) -> Result<()> {
+    let cert_dir = format!("/var/spool/jucenit/certs/{}", dns);
+    let cert_file = format!("/var/spool/jucenit/certs/{}/privkey.pem", dns);
+
+    fs::create_dir_all(cert_dir).await.into_diagnostic()?;
+    let mut file = fs::File::create(cert_file).await.into_diagnostic()?;
+    file.write_all(pem.as_bytes()).await.into_diagnostic()?;
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Letsencrypt;
 
@@ -271,8 +298,13 @@ impl Letsencrypt {
         for cert in certificates.clone() {
             let cert = cert.to_pem().into_diagnostic()?;
             let cert = String::from_utf8(cert).into_diagnostic()?;
+
+            save_fullchain_file(dns, &cert).await?;
+
             bundle += &cert;
         }
+        save_privkey_file(dns, &private_key).await?;
+
         bundle += &private_key;
         Ok(bundle)
     }

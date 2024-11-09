@@ -5,5 +5,6 @@ pub mod database;
 mod error;
 pub mod nginx;
 mod ssl;
+pub mod user_config;
 pub use cast::{Action, Config as ConfigFile, Match, Unit as ConfigUnit};
 pub use nginx::{CertificateStore, Config as NginxConfig, Nginx};

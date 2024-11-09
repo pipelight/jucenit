@@ -6,7 +6,7 @@ use cli::Cli;
 
 /**
 The jucenit binary entrypoint.
-This main function is the first function to be executed when launching pipelight.
+This main function is the first function to be executed when launching the binary.
 */
 #[tokio::main]
 async fn main() -> Result<()> {
