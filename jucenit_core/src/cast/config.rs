@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 // use utils::{files::FileType, teleport::Portal};
-use pipelight::error::PipelightError;
-use pipelight::utils::{file::FileType, teleport::Portal};
+use pipelight_error::PipelightError;
+use pipelight_utils::{file::FileType, teleport::Portal};
 
 // Config file related structs
 /**

@@ -4,7 +4,6 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-pipelight = { git = "https://github.com/pipelight/pipelight", branch = "dev" }
 # utils = { git = "https://github.com/pipelight/pipelight?ref=dev" }
 # acme2 = "0.5.1"
 acme2 = { git = "https://github.com/pipelight/acme2" }
@@ -40,6 +39,8 @@ log = "0.4.22"
 env_logger = "0.11.5"
 config-rs = "0.1.3"
 config = "0.14.1"
+pipelight_error = "0.2.10"
+pipelight_utils = "0.2.7"
 
 [dev-dependencies]
 env_logger = "0.11.5"

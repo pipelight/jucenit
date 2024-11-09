@@ -3,11 +3,15 @@ use std::path::PathBuf;
 // Error Handling
 use miette::{Error, IntoDiagnostic, Result, WrapErr};
 
-fn get_user_config() -> Result<()> {
-    #[cfg(debug_assertions)]
+fn test_path() -> Result<String> {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("../config.toml");
     let path = path.display().to_string();
+    Ok(path)
+}
+fn get_user_config() -> Result<()> {
+    #[cfg(debug_assertions)]
+    let path = test_path()?;
 
     #[cfg(not(debug_assertions))]
     let path = "/etc/jucenit/config.toml";
