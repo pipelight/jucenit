@@ -4,7 +4,8 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-pipelight = { git = "https://github.com/pipelight/pipelight", branch = "dev" } # utils = { git = "https://github.com/pipelight/pipelight?ref=dev" }
+pipelight = { git = "https://github.com/pipelight/pipelight", branch = "dev" }
+# utils = { git = "https://github.com/pipelight/pipelight?ref=dev" }
 # acme2 = "0.5.1"
 acme2 = { git = "https://github.com/pipelight/acme2" }
 migration = { path = "../migration" }
